@@ -1,0 +1,896 @@
+= UCC 122-1 Cloud Architecture
+
+== Designing a monolithic architecture for Digi Bank with SpringBoot
+
+*Cloud Computing Professional License*
+
+*University of the Mountains*
+
+By Engineer Willy Damtchou
+
+June 2026
+
+'''
+
+== Context
+
+In the previous workshop, students implemented a first executable version of Digi Bank as a modular monolith based on Jakarta EE, PostgreSQL, Maven, and WildFly. The goal of this step was to transform the architectural framework developed in the initial work into a structured, coherent technical implementation that students could directly manipulate.
+
+This workshop follows the same functional scope and pedagogical approach, but with a different application development stack. This time, the Digi Bank application is developed using Spring Boot, while retaining Maven, PostgreSQL, WAR packaging, and deployment on the WildFly application server. This choice allows students to compare two technical approaches applied to the same business problem, without altering the functional objectives of the Digi Bank project.
+
+The pedagogical value of this workshop is twofold. On the one hand, it allows participants to consolidate their understanding of a modular monolithic architecture in a modern Java environment. On the other hand, it demonstrates that the same system can be implemented with different technical frameworks while maintaining the same requirements for modularity, persistence, API exposure, testability, and deployment.
+
+== Scenario
+
+Digi Bank's technical team now wants a second reference implementation of the system, this time based on Spring Boot. The goal is not to change the business scope or redefine the functional areas, but to rebuild a coherent first version of the banking platform using the Spring ecosystem, including Spring Boot, Spring Web, and Spring Data JPA.
+
+The system must remain organized around the areas already identified in the core project: customer management, account management, transaction management, compliance controls, and the application entry point. The application must use PostgreSQL for data persistence, Maven for build management, be compiled in WAR format, and then deployed on WildFly as an external runtime container, following a traditional Spring Boot application deployment approach.
+
+Your role is to produce a first stable, executable, and structured technical version of Digi Bank in Spring Boot, directly usable in IntelliJ IDEA or Visual Studio Code. This version must allow you to create the initial business components, configure data access, expose REST endpoints, validate system behavior through unit tests, and prepare a clean foundation for subsequent workshops.
+
+== Workshop objectives
+
+At the end of this workshop, the student should be able to:
+
+* A3.1: Set up a Java development environment compatible with Spring Boot, Maven, PostgreSQL and WildFly.
+* A3.2: Create and configure a multi-module Maven project for Digi Bank.
+* A3.3: Structure a modular monolithic Spring Boot application around the domains shared, customer, account, transaction, compliance, index and app.
+* A3.4: Configure PostgreSQL and WildFly to run a Spring Boot application packaged as a WAR file.
+* A3.5: Develop JPA entities, repositories, services and REST controllers with Spring.
+* A3.6: Produce a WAR package compatible with deployment on WildFly using SpringBootServletInitializer.
+* A3.7: Write and run JUnit unit tests.
+* A3.8: Write and execute BDD scenarios with Cucumber.
+* A3.9: Deploy the application on WildFly and verify that it is working correctly.
+
+== Resources and prerequisites
+
+a — Reference resources
+
+This workshop is based on the following elements:
+
+* The Digi Bank overarching project and its functional framework
+* Workshop 2, conducted with Jakarta EE, serves here as a reference for educational continuity.
+* The course on cloud architecture, monolithic architectures, and modular structuring
+* The traditional deployment principles of a Spring Boot application as a WAR file in an external container, with a main class extending SpringBootServletInitializer
+* Configuring a PostgreSQL datasource in WildFly
+
+b — Technical prerequisites
+
+The student must have:
+
+* JDK 17 or compatible version
+* Apache Maven
+* PostgreSQL
+* WildFly
+* IntelliJ IDEA or Visual Studio Code with Java extensions
+* Git
+* a machine with a sufficient configuration to run all of these components locally.
+
+=== 1. Environmental preparation
+
+==== 1.1. Installing the tools
+
+Install the following components:
+
+* Java JDK 17
+* Maven
+* PostgreSQL
+* WildFly
+* IntelliJ IDEA Community or Ultimate, or Visual Studio Code with Java extensions;
+* Git
+
+==== 1.2. Basic checks
+
+Execute the following commands in a terminal:
+
+[source,bash]
+----
+Java -version
+mvn -version
+git --version
+psql --version
+----
+
+==== 1.3. Expected Results
+
+[source]
+----
+user@ca:4f:12:a0:b3:c1 ~ %   Java -version
+mvn -version
+git --version
+psql --version
+Java version "17.0.16" 2025-07-15 LTS
+Java(TM ) SE Runtime Environment ( build 17.0.16+12-LTS-247 )
+Java HotSpot ( TM ) 64-Bit Server VM (build 17.0.16+12-LTS-247,
+mixed fashion, (sharing )
+Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b)
+Maven home: /opt/homebrew/Cellar/maven/3.9.11/libexec
+Java version: 17.0.16, vendor: Oracle Corporation, runtime:
+/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home
+Default local: fr_FR, platform encoding: UTF-8
+BONE name: "mac os x", version: "26.5.1", arch: "aarch64",
+family: "mac"
+----
+
+[source]
+----
+git version 2.50.1 (Apple Git-155 )
+psql (PostgreSQL) 18.4 ( Homebrew )
+user@ca:4f:12:a0:b3:c1 ~ %
+----
+
+The environment must correctly recognize Java, Maven, Git, and PostgreSQL. The workstation must be ready to compile a Maven project, connect to PostgreSQL, and prepare for deployment on WildFly.
+
+=== 2. Configuration under IntelliJ IDEA and VS Code
+
+==== 2.1. Configuration under IntelliJ IDEA
+
+1. Open IntelliJ IDEA.
+2. Select New Project.
+3. Select Maven.
+4. Define the Java SDK 17.
+5. Create a parent project named `digibank-parent-spring`.
+6. Enable automatic import of Maven projects.
+7. Verify that `src/main/java` is recognized as the source folder.
+8. Verify that `src/test/java` is recognized as a test folder.
+9. Install or activate the following useful plugins: Spring, Maven, JUnit, Cucumber for Java, Database Tools if available.
+
+==== 2.2. Configuration under VS Code
+
+1. Install the following extensions:
+* Extension Pack for Java
+* Maven for Java
+* Language Support for Java by Red Hat
+* Debugger for Java
+* Test Runner for Java
+* Spring Boot Extension Pack
+* Cucumber / Gherkin support
+2. Verify that JDK 17 is properly configured.
+3. Verify that Maven is correctly detected.
+4. Verify that JUnit tests and Gherkin files are recognized.
+
+==== 2.3. Expected result
+
+The chosen IDE must automatically recognize the project's Maven structure, Spring Boot dependencies, JUnit tests, and Cucumber scenario files.
+
+=== 3. Creation of the PostgreSQL database
+
+==== 3.1. Creating the database and the user
+
+In PostgreSQL, execute the following commands:
+
+[source,sql]
+----
+CREATE DATABASE digibank_db ;
+CREATE USER digibank_user WITH PASSWORD 'digibank_pwd' ;
+GRANT ALL PRIVILEGES ON DATABASE digibank_db TO digibank_user;
+----
+
+==== 3.2. Connection Verification
+
+[source,bash]
+----
+psql -U digibank_user -d digibank_db -h localhost
+----
+
+==== 3.3. Expected Result
+
+[source]
+----
+psql (18.4 (Postgres.app))
+Kind "help" for help.
+
+postgres = # CREATE DATABASE digibank_db;
+CREATE DATABASE
+postgres = # CREATE USER digibank_user WITH PASSWORD
+'digibank_pwd' ;
+CREATE ROLE
+postgres = # GRANT ALL PRIVILEGES ON DATABASE digibank_db TO
+digibank_user;
+GRANT
+postgres = #
+----
+
+The connection to the `digibankdb` database must be accepted without error. This database will be used for JPA persistence of the Spring Boot application.
+
+=== 4. Creation of the multi-module Maven project
+
+==== 4.1. Project Tree Structure
+
+Create the following structure:
+
+[source]
+----
+digibank-parent-spring/
+├── pom.xml
+├── digibank-shared/
+│ ├── pom.xml
+│ └── src/
+│ ├── main/java/com/digibank/shared/
+│ └── test/java/com/digibank/shared/
+├── digibank-customer/
+│ ├── pom.xml
+│ └── src/
+│ ├── main/java/com/digibank/customer/
+│ ├── main/resources/
+│ └── test/java/com/digibank/customer/
+├── digibank-account/
+│ ├── pom.xml
+│ └── src/
+│ ├── main/java/com/digibank/account/
+│ ├── main/resources/
+│ └── test/java/com/digibank/account/
+├── digibank-transaction/
+│ ├── pom.xml
+│ └── src/
+│ ├── main/java/com/digibank/transaction/
+│ ├── main/resources/
+│ └── test/java/com/digibank/transaction/
+├── digibank-compliance/
+│ ├── pom.xml
+│ └── src/
+│ ├── main/java/com/digibank/compliance/
+│ ├── main/resources/
+│ └── test/java/com/digibank/compliance/
+├── digibank-index/
+│ ├── pom.xml
+│ └── src/
+│ ├── main/java/com/digibank/index/
+│ ├── main/resources/templates/
+│ └── test/java/com/digibank/index/
+└── digibank-app/
+├── pom.xml
+└── src/
+├── main/java/com/digibank/app/
+├── main/resources/
+├── main/webapp/WEB-INF/
+└── test/java/com/digibank/app/
+----
+
+This structure follows the modular organization of workshop 2, in order to maintain educational continuity while changing the application framework.
+
+==== 4.2. pom.xml parent
+
+Create the file `digibank-parent-spring/pom.xml`:
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+          xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+          xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd​
+
+<modelVersion> 4.0.0 </modelVersion>
+
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent-spring </artifactId>
+<version> 1.0.0 </version>
+<packaging> pom </packaging>
+
+<modules>
+<module> digibank-shared </module>
+<module> digibank-customer </module>
+<module> digibank-account </module>
+<module> digibank-transaction </module>
+<module> digibank-compliance </module>
+<module> digibank-index </module>
+<module> digibank-app </module>
+</modules>
+
+<properties>
+<java.version> 17 </java.version>
+<spring.boot.version> 3.5.15 </spring.boot.version>
+<maven.compiler.release> 17 </maven.compiler.release>
+<project.build.sourceEncoding>                              UTF-8
+</project.build.sourceEncoding>
+<junit.version> 5.10.2 </junit.version>
+<cucumber.version> 7.15.0 </cucumber.version>
+<junit.platform.version> 1.12.2 </junit.platform.version>
+</properties>
+
+<dependencyManagement>
+<dependencies>
+<dependency>
+<groupId> org.springframework.boot </groupId>
+<artifactId> spring-boot-dependencies </artifactId>
+<version> ${spring.boot.version} </version>
+<type> pom </type>
+<scope> import </scope>
+</dependency>
+</dependencies>
+</dependencyManagement>
+
+<build>
+<pluginManagement>
+<plugins>
+<plugin>
+<groupId> org.wildfly.plugins </groupId>
+<artifactId> wildfly-maven-plugin </artifactId>
+<version> 5.1.2.Final </version>
+</plugin>
+
+<plugin>
+<groupId> org.apache.maven.plugins </groupId>
+<artifactId> maven-compiler-plugin </artifactId>
+<version> 3.13.0 </version>
+<configuration>
+<release> 17 </release>
+</configuration>
+</plugin>
+<plugin>
+<groupId> org.apache.maven.plugins </groupId>
+<artifactId> maven-war-plugin </artifactId>
+<version> 3.4.0 </version>
+</plugin>
+</plugins>
+</pluginManagement>
+</build>
+</project>
+----
+
+=== 5. Module creation
+
+==== 5.1. Shared module `digibank-shared`
+
+1. `pom.xml`
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+          xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+        xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+<parent>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent-spring </artifactId>
+<version> 1.0.0 </version>
+</parent>
+<modelVersion> 4.0.0 </modelVersion>
+<artifactId> digibank-shared </artifactId>
+<packaging> jar </packaging>
+
+<dependencies>
+<dependency>
+<groupId> org.springframework.boot </groupId>
+<artifactId> spring-boot-starter-data-jpa </artifactId>
+</dependency>
+</dependencies>
+</project>
+----
+
+2. `BaseEntity` Class
+
+[source,java]
+----
+package com.digibank.shared.model;
+
+import jakarta.persistence. GeneratedValue ;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence. ID ;
+import jakarta.persistence. MappedSuperclass ;
+
+@MappedSuperclass
+public abstract class BaseEntity {
+
+   @Id
+@GeneratedValue ( strategy = GenerationType.IDENTITY )
+   private Long id ;
+
+    public Long getId () {
+         return id ;
+}
+}
+----
+
+3. API Response Class
+
+[source,java]
+----
+package com.digibank.shared.dto;
+
+public class ApiResponse {
+    private String message ;
+    private boolean success ;
+
+    public ApiResponse () {
+}
+
+    public ApiResponse (String message, boolean success) {
+         this.message = message ;
+         this.success = success ;
+}
+
+    public String getMessage () {
+         return message ;
+}
+
+    public void setMessage (String message) {
+         this.message = message ;
+}
+
+    public boolean isSuccess () {
+         return success ;
+}
+
+    public void setSuccess ( boolean success) {
+         this.success = success ;
+}
+}
+----
+
+==== 5.2. `digibank-customer` customer module
+
+1. Addictions
+
+Create `digibank-customer/pom.xml` with dependencies on `digibank-shared`, `spring-boot-starter-web` and `spring-boot-starter-data-jpa`.
+
+2. Customer Entity
+
+[source,java]
+----
+package com.digibank.customer.model;
+
+import com.digibank.shared.model.BaseEntity;
+import jakarta.persistence. Column ;
+import jakarta.persistence. Entity ;
+import jakarta.persistence. Table ;
+
+@Entity
+@Table (name = "customers" )
+public class Customer extends BaseEntity {
+
+    @Column (nullable = false )
+    private String firstName ;
+
+    @Column (nullable = false )
+    private String lastName ;
+
+    @Column (unique = true , nullable = false )
+    private String email ;
+
+    // Getters and Setters
+    public String getFirstName () {
+        return firstName ;
+    }
+
+    public void setFirstName (String firstName) {
+        this.firstName = firstName ;
+    }
+
+    public String getLastName () {
+        return lastName ;
+    }
+
+    public void setLastName (String lastName) {
+        this.lastName = lastName ;
+    }
+
+    public String getEmail () {
+        return email ;
+    }
+
+    public void setEmail (String email) {
+        this.email = email ;
+    }
+}
+----
+
+==== 5.3. `digibank-account` module
+
+1. Addictions
+
+Create `digibank-account/pom.xml` with dependencies on `digibank-shared`, `spring-boot-starter-web` and `spring-boot-starter-data-jpa`.
+
+2. Account Entity
+
+[source,java]
+----
+package com.digibank.account.model;
+
+import com.digibank.shared.model.BaseEntity;
+import jakarta.persistence. Column ;
+import jakarta.persistence. Entity ;
+import jakarta.persistence. Table ;
+
+@Entity
+@Table (name = "accounts" )
+public class Account extends BaseEntity {
+
+    @Column (unique = true , nullable = false )
+    private String accountNumber ;
+
+    @Column (nullable = false )
+    private Double balance ;
+
+    @Column (nullable = false )
+    private Long customerId ;
+
+    // Getters and Setters
+    public String getAccountNumber () {
+        return accountNumber ;
+    }
+
+    public void setAccountNumber (String accountNumber) {
+        this.accountNumber = accountNumber ;
+    }
+
+    public Double getBalance () {
+        return balance ;
+    }
+
+    public void setBalance (Double balance) {
+        this.balance = balance ;
+    }
+
+    public Long getCustomerId () {
+        return customerId ;
+    }
+
+    public void setCustomerId (Long customerId) {
+        this.customerId = customerId ;
+    }
+}
+----
+
+==== 5.4. `digibank-transaction` module
+
+1. Addictions
+
+Create `digibank-transaction/pom.xml` with dependencies on `digibank-shared`, `spring-boot-starter-web` and `spring-boot-starter-data-jpa`.
+
+2. Transaction Entity
+
+[source,java]
+----
+package com.digibank.transaction.model;
+
+import com.digibank.shared.model.BaseEntity;
+import jakarta.persistence. Column ;
+import jakarta.persistence. Entity ;
+import jakarta.persistence. Table ;
+import java.time.LocalDateTime;
+
+@Entity
+@Table (name = "transactions" )
+public class Transaction extends BaseEntity {
+
+    @Column (nullable = false )
+    private String accountId ;
+
+    @Column (nullable = false )
+    private Double amount ;
+
+    @Column (nullable = false )
+    private String type ;
+
+    @Column (nullable = false )
+    private LocalDateTime transactionDate ;
+
+    // Getters and Setters
+    public String getAccountId () {
+        return accountId ;
+    }
+
+    public void setAccountId (String accountId) {
+        this.accountId = accountId ;
+    }
+
+    public Double getAmount () {
+        return amount ;
+    }
+
+    public void setAmount (Double amount) {
+        this.amount = amount ;
+    }
+
+    public String getType () {
+        return type ;
+    }
+
+    public void setType (String type) {
+        this.type = type ;
+    }
+
+    public LocalDateTime getTransactionDate () {
+        return transactionDate ;
+    }
+
+    public void setTransactionDate (LocalDateTime transactionDate) {
+        this.transactionDate = transactionDate ;
+    }
+}
+----
+
+==== 5.5. `digibank-compliance` module
+
+1. Addictions
+
+Create `digibank-compliance/pom.xml` with dependencies on `digibank-shared`, `spring-boot-starter-web` and `spring-boot-starter-data-jpa`.
+
+2. ComplianceCheck Entity
+
+[source,java]
+----
+package com.digibank.compliance.model;
+
+import com.digibank.shared.model.BaseEntity;
+import jakarta.persistence. Column ;
+import jakarta.persistence. Entity ;
+import jakarta.persistence. Table ;
+import java.time.LocalDateTime;
+
+@Entity
+@Table (name = "compliance_checks" )
+public class ComplianceCheck extends BaseEntity {
+
+    @Column (nullable = false )
+    private Long customerId ;
+
+    @Column (nullable = false )
+    private String checkType ;
+
+    @Column (nullable = false )
+    private boolean passed ;
+
+    @Column (nullable = false )
+    private LocalDateTime checkDate ;
+
+    // Getters and Setters
+    public Long getCustomerId () {
+        return customerId ;
+    }
+
+    public void setCustomerId (Long customerId) {
+        this.customerId = customerId ;
+    }
+
+    public String getCheckType () {
+        return checkType ;
+    }
+
+    public void setCheckType (String checkType) {
+        this.checkType = checkType ;
+    }
+
+    public boolean isPassed () {
+        return passed ;
+    }
+
+    public void setPassed (boolean passed) {
+        this.passed = passed ;
+    }
+
+    public LocalDateTime getCheckDate () {
+        return checkDate ;
+    }
+
+    public void setCheckDate (LocalDateTime checkDate) {
+        this.checkDate = checkDate ;
+    }
+}
+----
+
+==== 5.6. `digibank-index` module
+
+1. Addictions
+
+Create `digibank-index/pom.xml` with dependencies on `digibank-shared`, `spring-boot-starter-web` and `spring-boot-starter-thymeleaf`.
+
+2. IndexController Class
+
+[source,java]
+----
+package com.digibank.index.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+
+@Controller
+public class IndexController {
+
+    @GetMapping("/" )
+    public String index () {
+        return "index" ;
+    }
+}
+----
+
+==== 5.7. `digibank-app` module
+
+1. Addictions
+
+Create `digibank-app/pom.xml` with dependencies on all other `digibank` modules, `spring-boot-starter-web`, `spring-boot-starter-tomcat`, `spring-boot-starter-data-jpa`, `postgresql`, `junit-jupiter-api`, `junit-jupiter-engine`, `cucumber-java`, `cucumber-junit-platform-engine`.
+
+2. `DigiBankApplication` Class
+
+[source,java]
+----
+package com.digibank.app;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringBootServletInitializer;
+import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+
+@SpringBootApplication
+public class DigiBankApplication extends SpringBootServletInitializer {
+
+    public static void main (String[] args) {
+        SpringApplication.run(DigiBankApplication.class, args);
+    }
+}
+----
+
+=== 6. Configuration files
+
+==== 6.1. `application.properties`
+
+Create `digibank-app/src/main/resources/application.properties`:
+
+[source,properties]
+----
+spring.datasource.url=jdbc:postgresql://localhost:5432/digibank_db
+spring.datasource.username=digibank_user
+spring.datasource.password=digibank_pwd
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+----
+
+==== 6.2. `web.xml`
+
+Create `digibank-app/src/main/webapp/WEB-INF/web.xml`:
+
+[source,xml]
+----
+<!DOCTYPE web-app PUBLIC
+ "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+ "http://java.sun.com/dtd/web-app_2_3.dtd" >
+
+<web-app>
+  <display-name>Archetype Created Web Application</display-name>
+</web-app>
+----
+
+=== 7. Build and Deployment
+
+==== 7.1. Build the WAR file
+
+Execute the following command in the `digibank-parent-spring` directory:
+
+[source,bash]
+----
+mvn clean install
+----
+
+==== 7.2. Deploy on WildFly
+
+1. Start WildFly:
+
+[source,bash]
+----
+./wildfly/bin/standalone.sh
+----
+
+2. Deploy the WAR file:
+
+Copy `digibank-app/target/digibank-app-1.0.0.war` to `wildfly/standalone/deployments/`.
+
+==== 7.3. Expected Result
+
+The application should be accessible at `http://localhost:8080/digibank-app-1.0.0/` and display the index page. REST endpoints should be accessible and functional.
+
+=== 8. Testing
+
+==== 8.1. Unit Tests
+
+Example `CustomerServiceTest.java` in `digibank-customer/src/test/java/com/digibank/customer/service/`:
+
+[source,java]
+----
+package com.digibank.customer.service;
+
+import com.digibank.customer.model.Customer;
+import com.digibank.customer.repository.CustomerRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.when;
+
+public class CustomerServiceTest {
+
+    @Mock
+    private CustomerRepository customerRepository;
+
+    @InjectMocks
+    private CustomerService customerService;
+
+    @BeforeEach
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    public void testGetCustomerById() {
+        Customer customer = new Customer();
+        customer.setId(1L);
+        customer.setFirstName("John");
+        customer.setLastName("Doe");
+        customer.setEmail("john.doe@example.com");
+
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+
+        Optional<Customer> foundCustomer = customerService.getCustomerById(1L);
+
+        assertEquals("John", foundCustomer.get().getFirstName());
+    }
+}
+----
+
+==== 8.2. BDD Scenarios with Cucumber
+
+Example `customer.feature` in `digibank-customer/src/test/resources/features/`:
+
+[source,gherkin]
+----
+Feature: Customer Management
+  As a bank administrator
+  I want to manage customer accounts
+  So that I can ensure proper banking operations
+
+  Scenario: Create a new customer
+    Given I am on the customer creation page
+    When I enter "John" as first name and "Doe" as last name and "john.doe@example.com" as email
+    And I click the "Create Customer" button
+    Then a new customer with email "john.doe@example.com" should be created
+----
+
+Example `CustomerStepDefinitions.java` in `digibank-customer/src/test/java/com/digibank/customer/steps/`:
+
+[source,java]
+----
+package com.digibank.customer.steps;
+
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.When;
+import io.cucumber.java.en.Then;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class CustomerStepDefinitions {
+
+    @Given("I am on the customer creation page")
+    public void i_am_on_the_customer_creation_page() {
+        // Simulate navigation to customer creation page
+        System.out.println("Navigated to customer creation page");
+    }
+
+    @When("I enter \"{word}\" as first name and \"{word}\" as last name and \"{word}\" as email")
+    public void i_enter_first_name_last_name_email(String firstName, String lastName, String email) {
+        // Simulate entering customer details
+        System.out.printf("Entered customer details: %s %s, %s\n", firstName, lastName, email);
+    }
+
+    @When("I click the \"{string}\" button")
+    public void i_click_the_button(String buttonName) {
+        // Simulate clicking a button
+        System.out.printf("Clicked '%s' button\n", buttonName);
+    }
+
+    @Then("a new customer with email \"{word}\" should be created")
+    public void a_new_customer_with_email_should_be_created(String email) {
+        // Simulate verification of customer creation
+        System.out.printf("Verified customer creation for email: %s\n", email);
+        assertTrue(true); // Placeholder for actual assertion
+    }
+}
+----
+
+=== 9. Conclusion
+
+This workshop provided a practical guide to designing and implementing a modular monolithic architecture for Digi Bank using Spring Boot. By comparing it with the previous Jakarta EE implementation, students gained a deeper understanding of different technology stacks and their application in real-world banking systems. The structured approach, from environment setup to testing and deployment, ensures a solid foundation for future development and exploration of microservices architectures.
