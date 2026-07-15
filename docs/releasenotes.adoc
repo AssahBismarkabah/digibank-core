@@ -1,0 +1,7 @@
+## Release Notes
+
+on this page release notes for each version released are published
+
+
+For Versioning policy (see xref:./version-policy/dbs-versioning-policy.adoc[Versioning, Release and Support policy]).
+
