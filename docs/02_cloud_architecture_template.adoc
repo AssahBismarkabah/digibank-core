@@ -1,4 +1,4 @@
-= UCC 122-1 Cloud Architecture
+= Cloud Architecture
 
 == Designing a monolithic architecture for Digi Bank with SpringBoot
 

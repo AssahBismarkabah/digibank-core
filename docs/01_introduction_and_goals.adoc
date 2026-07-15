@@ -1,4 +1,4 @@
-== Architectural Framework for Digi Bank
+= Architectural Framework for Digi Bank
 
 *Cloud Computing Professional License*
 
