@@ -1,4 +1,4 @@
-==: Architectural Framework for Digi Bank
+== Architectural Framework for Digi Bank
 
 *Cloud Computing Professional License*
 
@@ -41,15 +41,15 @@ The students have the following materials to complete the workshop:
 
 The work is organized into three parts in order to maintain a clear and structured progression, in accordance with the teaching style chosen for the course.
 
-=== Part 1 — Business analysis and identification of stakeholders
+=== Business analysis and identification of stakeholders
 
 Students must first analyze Digi Bank's business needs and identify the stakeholders who interact with Digi Bank. They will distinguish between internal stakeholders, such as bank administrators, compliance officers, and operations managers, and external stakeholders, such as customers, fintech partners, payment systems, and regulatory bodies. This work should demonstrate that the banking system is not simply an isolated application, but a platform at the center of a broader ecosystem.
 
-=== Part 2 — Identification of essential functions and constraints
+=== Identification of essential functions and constraints
 
 Students must then identify the system's main functions. At a minimum, they must include customer management, account management, transaction and payment management, credit and loan management, KYC/AML compliance, and the system's openness to partners via APIs. In parallel, they must identify the main non-functional constraints, such as availability, security, traceability, scalability, regulatory compliance, and the need for future evolution. This section must demonstrate that the target architecture is driven by both business needs and system quality requirements.
 
-=== Part 3 — Proposal for a first target architecture
+=== Proposal for a first target architecture
 
 Finally, students must provide an initial overview of Digi Bank's architecture. At this stage, the goal is not to detail all microservices or advanced patterns, but rather to represent the system's main components: access channels, core banking system, core business modules, database or data storage, security components, integration with external services, and the API layer. The diagram can be simple, but it must be legible, coherent, and accompanied by a brief justification explaining the chosen design choices.
 
