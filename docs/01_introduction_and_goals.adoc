@@ -1,0 +1,79 @@
+==: Architectural Framework for Digi Bank
+
+*Cloud Computing Professional License*
+
+June 2026
+
+'''
+
+== Context
+
+As part of the course's capstone project, students are placed in a situation closely resembling a real-world professional context: a new digital bank wants to implement its central banking system, called Digi Bank. This system must manage customers, accounts, transactions, payments, loans, and compliance requirements, all while relying on a modern, modular, secure, and scalable architecture. Before discussing advanced choices such as microservices, resilience, scalability, or security, it is necessary to conduct an initial architectural framework to understand the system's scope, its essential functions, its stakeholders, and the major constraints that will guide design decisions.
+
+This workshop is therefore the first step in the project. It does not yet require detailed technical implementation, but rather high-level work in understanding, structuring, and modeling. The goal is to encourage students to think like novice architects, capable of transforming a business need into a coherent initial vision of the target system.
+
+== Scenario
+
+Digi Bank is a digital bank currently launching. It aims to offer its future customers an accessible online banking platform capable of managing account openings, balance inquiries, transfers, payments, credit transactions, and regulatory compliance mechanisms such as KYC and AML. The bank's management wants the system to be designed from the ground up to support future growth, integrate with external partners via APIs, and guarantee a high level of availability and security.
+
+The architecture team therefore needs an initial scoping document to answer the following questions: who are the main actors in the system, what are the essential business functions, what constraints structure the project, and what could an initial overall architecture of Digi Bank look like? This is the preparatory work that the students must carry out in this workshop.
+
+== Workshop Objectives
+
+At the end of this workshop, the student should be able to:
+
+* A1.1: Identify the main internal and external actors of the Digi Bank system.
+* A1.2: Describe the essential business functions of the Digi Bank digital banking system.
+* A1.3: Analyze the functional and non-functional constraints that influence the target architecture.
+* A1.4: Provide an initial overview of Digi Bank's architecture in the form of a high-level diagram.
+* A1.5: Justify the initial choices for structuring the system in relation to the expressed business needs.
+
+== Resources Provided
+
+The students have the following materials to complete the workshop:
+
+* The description of the Digi Bank project's central theme for Digi Bank.
+* The course content covers the introduction to cloud architecture and the major design challenges.
+* The course information sheet, including learning objectives and pedagogical positioning.
+* The basic references on cloud architecture, microservices and distributed systems, notably Kleppmann and Newman.
+
+== Work Requested
+
+The work is organized into three parts in order to maintain a clear and structured progression, in accordance with the teaching style chosen for the course.
+
+=== Part 1 — Business analysis and identification of stakeholders
+
+Students must first analyze Digi Bank's business needs and identify the stakeholders who interact with Digi Bank. They will distinguish between internal stakeholders, such as bank administrators, compliance officers, and operations managers, and external stakeholders, such as customers, fintech partners, payment systems, and regulatory bodies. This work should demonstrate that the banking system is not simply an isolated application, but a platform at the center of a broader ecosystem.
+
+=== Part 2 — Identification of essential functions and constraints
+
+Students must then identify the system's main functions. At a minimum, they must include customer management, account management, transaction and payment management, credit and loan management, KYC/AML compliance, and the system's openness to partners via APIs. In parallel, they must identify the main non-functional constraints, such as availability, security, traceability, scalability, regulatory compliance, and the need for future evolution. This section must demonstrate that the target architecture is driven by both business needs and system quality requirements.
+
+=== Part 3 — Proposal for a first target architecture
+
+Finally, students must provide an initial overview of Digi Bank's architecture. At this stage, the goal is not to detail all microservices or advanced patterns, but rather to represent the system's main components: access channels, core banking system, core business modules, database or data storage, security components, integration with external services, and the API layer. The diagram can be simple, but it must be legible, coherent, and accompanied by a brief justification explaining the chosen design choices.
+
+== Expected Deliverables
+
+The workshop deliverables are as follows:
+
+* A 2-4 page document presenting the needs analysis, stakeholders, essential functions and system constraints.
+* A high-level architectural diagram of Digi Bank.
+* A written justification of the main structural choices proposed.
+
+== Evaluation Criteria
+
+The workshop evaluation can be based on the following criteria:
+
+* Relevance of actor identification.
+* Quality of the business analysis.
+* Comprehensiveness of essential functions included.
+* Taking into account non-functional constraints.
+* Clarity and consistency of the architectural plan.
+* Quality of the written justification.
+* Ability to link the proposed choices to the specific context of Digi Bank.
+
+== Extension
+
+This workshop directly prepares the ground for the next phase of the overarching project. The framework established here will serve as the basis for subsequent workshops, particularly for the design of an initial monolithic architecture, and then for its progressive decomposition into microservices. It therefore lays the foundation for the architectural reasoning that will be further developed throughout the rest of the course.
+
