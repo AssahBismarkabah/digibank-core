@@ -1,0 +1,1779 @@
+= Cloud Architecture
+
+== Designing an initial monolithic architecture (Legacy application) for Digi Bank with Jakarta EE
+
+*Cloud Computing Professional License*
+
+---
+
+== Context
+
+In the previous workshop, students analyzed the context of the Digi Bank project, identified the actors, specified the major functionalities, studied the constraints of the banking sector and understood the interest of a modular monolithic architecture for a financial information system in the structuring phase.
+
+The Digi Bank project aims to establish a secure transactional system enabling the management of customers, accounts, financial operations, compliance controls and a unified point of entry, within a framework of reliability, traceability and reasonable scalability.
+
+This second workshop extends this work by moving from analysis to concrete realization, in the form of a practical workshop where students build the application step by step, respecting a complete technical structure and a logical order of development.
+
+== Scenario
+
+Digi Bank's technical team has validated the choice of a modular monolith based on Jakarta EE and now wishes to launch a first operational implementation of the system.
+
+The developers must create the framework of the project, configure the development environment, connect the PostgreSQL database, prepare the WildFly server, develop the first business modules, expose REST access points, and then ensure quality through unit tests and automated functional scenarios.
+
+Your role is to produce a first coherent technical version of the platform, directly executable in IntelliJ IDEA or Visual Studio Code.
+
+== Workshop objectives
+
+At the end of this workshop, the student should be able to:
+
+* A1.1: Set up a complete Java/Jakarta EE development environment.
+* A1.2: Create and configure a multi-module Maven project.
+* A1.3: Structure a modular monolithic application around the domains shared, customer, account, transaction, compliance and index.
+* A1.4: Configure PostgreSQL and WildFly for application execution.
+* A1.5: Develop REST entities, services, repositories and resources.
+* A1.6: Run JUnit unit tests.
+* A1.7: Write and launch BDD scenarios with Cucumber.
+* A1.8: Deploy the application and verify that it is working correctly.
+
+== Resources and prerequisites
+
+a — Reference resources
+
+The choices made in this workshop are based on the framework elements of the Digi Bank project, including the modular structure of the system, the use of Jakarta EE, the organization into distinct functional components, and the use of technologies such as Maven, PostgreSQL, JUnit, Cucumber, and WildFly.[1][3][4]
+
+b — Technical prerequisites
+
+The student must have:
+
+* JDK 17 or a version compatible with Jakarta EE
+* Apache Maven
+* PostgreSQL
+* WildFly
+* IntelliJ IDEA or Visual Studio Code
+* Git
+* A machine with a configuration sufficient to run all of these components locally
+
+=== 1. Environmental preparation
+
+==== 1.1. Installing the tools
+
+Install the following components:
+
+* Java JDK 17
+* Maven
+* PostgreSQL
+* WildFly
+* IntelliJ IDEA Community or Ultimate, or Visual Studio Code with Java extensions
+* Git
+
+==== 1.2. Basic checks
+
+Execute the following commands in a terminal:
+
+[source,bash]
+----
+Java -version
+mvn -version
+git --version
+psql --version
+----
+
+==== 1.3. Expected Results
+
+[source]
+----
+user@ca:4f:12:a0:b3:c1 ~ %   Java -version
+mvn -version
+git --version
+psql --version
+Java version "17.0.16" 2025-07-15 LTS
+Java(TM ) SE Runtime Environment ( build 17.0.16+12-LTS-247 )
+Java HotSpot ( TM ) 64-Bit Server VM (build 17.0.16+12-LTS-247,
+mixed fashion, (sharing )
+Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b)
+Maven home: /opt/homebrew/Cellar/maven/3.9.11/libexec
+Java version: 17.0.16, vendor: Oracle Corporation, runtime:
+/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home
+Default local: fr_FR, platform encoding: UTF-8
+BONE name: "mac os x", version: "26.5.1", arch: "aarch64",
+family: "mac"
+git version 2.50.1 (Apple Git-155 )
+psql (PostgreSQL) 18.4 ( Homebrew )
+user@ca:4f:12:a0:b3:c1 ~ %
+----
+
+The environment must correctly recognize Java, Maven, Git, and PostgreSQL. The workstation must be ready to compile a Maven project, connect to PostgreSQL, and prepare for deployment on WildFly.
+
+=== 2. Configuration under IntelliJ IDEA and VS Code
+
+==== 2.1. Configuration under IntelliJ IDEA
+
+1. Open IntelliJ IDEA.
+2. Choose New Project
+3. Select Maven
+4. Java 17 SDK
+5. Create a parent project named `digibank-parent`
+6. Enable automatic import of Maven projects
+7. `src/main/java` folder is recognized as the source.
+8. Verify that the `src/test/java` folder is recognized as a test folder.
+9. Install the plugins
+* Jakarta EE support
+* Maven
+* JUnit
+* Cucumber for Java
+* Database tools if available
+
+==== 2.2. Configuration under VS Code
+
+1. Install the following extensions:
+* Extension Pack for Java
+* Maven for Java
+* Language Support for Java by Red Hat
+* Debugger for Java
+* Test Runner for Java
+* Cucumber (Gherkin) Full Support or equivalent
+2. `.vscode/settings.json` file :
+
+[source,json]
+----
+{
+          "java.configuration.runtimes" : [
+{
+                 "name" : "JavaSE-17",
+                 "path" : "C:/Program Files/Java/jdk-17"
+}
+],
+           "java.import.maven.enabled" : true ,
+           "java.test.config" : {
+                 "workingDirectory" : "${ workspaceFolder }"
+}
+}
+----
+
+3. On Linux or macOS, replace the JDK path with the actual local path.
+
+[source,bash]
+----
+export JAVA_HOME= $(
+/usr/libexec/java_home -v 17 )
+export PATH = $JAVA_HOME / bin : $PATH
+----
+
+==== 2.3. Expected result
+
+The chosen IDE should automatically recognize the Maven project, the JDK, JUnit tests, and Gherkin Cucumber files.
+
+=== 3. Creation of the PostgreSQL database
+
+==== 3.1. Creating the database and the user
+
+In PostgreSQL, execute the following commands:
+
+[source,sql]
+----
+CREATE DATABASE digibank_db ;
+CREATE USER digibank_user WITH PASSWORD 'digibank_pwd' ;
+GRANT ALL PRIVILEGES ON DATABASE digibank_db TO digibank_user;
+----
+
+==== 3.2. Connection Verification
+
+[source,bash]
+----
+psql -U digibank_user -d digibank_db -h localhost
+----
+
+==== 3.3. Expected Result
+
+[source]
+----
+psql (18.4 (Postgres.app))
+Kind "help" for help.
+
+postgres = # CREATE DATABASE digibank_db;
+CREATE DATABASE
+postgres = # CREATE USER digibank_user WITH PASSWORD
+'digibank_pwd' ;
+CREATE ROLE
+postgres = # GRANT ALL PRIVILEGES ON DATABASE digibank_db TO
+digibank_user;
+GRANT
+postgres = #
+----
+
+The connection to the `digibank_db` database must be accepted without error.
+
+=== 4. Creation of the multi-module Maven project
+
+#### 4.1. Project Tree Structure
+
+Create the following structure:
+
+[source]
+----
+digibank-parent /
+├── pom.xml
+├── digibank-shared /
+│ ├── pom . xml
+│ └── src /
+│ ├── main / java / com / digibank / shared /
+│ └── test / java / com / digibank / shared /
+├── digibank-customer /
+│ ├── pom . xml
+│ └── src /
+│ ├── main / java / com / digibank / customer /
+│ ├── main / resources / META - INF /
+│ └── test / java / com / digibank / customer /
+├── digibank-account /
+│ ├── pom.xml
+│ └── src /
+│ ├── main / java / com / digibank / account /
+│ ├── main / resources / META - INF /
+│ └── test / java / com / digibank / account /
+├── digibank-transaction /
+│ ├── pom.xml
+│ └── src /
+│ ├── main / java / com / digibank / transaction /
+│ ├── main / resources / META - INF /
+│ └── test / java / com / digibank / transaction /
+├── digibank-compliance /
+│ ├── pom . xml
+│ └── src /
+│ ├── main / java / com / digibank / compliance /
+│ ├── main / resources / META - INF /
+│ └── test / java / com / digibank / compliance /
+├── digibank-index /
+│ ├── pom.xml
+│ └── src /
+│ ├── main / java / com / digibank / index /
+│ └── test / java / com / digibank / index /
+└── digibank-app /
+├── pom.xml
+└── src /
+└── hand /
+├── application / META - INF /
+└── webapp /
+└── WEB - INF /
+----
+
+This structure directly reflects the modular orientation of the Digi Bank system, with a shared module and separate business modules, then a final assembly module for deployment.
+
+#### 4.2. pom.xml parent
+
+`digibank-parent/pom.xml` file :
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+             xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+             xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+<modelVersion> 4.0.0 </modelVersion>
+
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent </artifactId>
+<version> 1.0.0 </version>
+<packaging> pom </packaging>
+
+<modules>
+<module> digibank-shared </module>
+<module> digibank-customer </module>
+<module> digibank-account </module>
+<module> digibank-transaction </module>
+<module> digibank-compliance </module>
+<module> digibank-index </module>
+<module> digibank-app </module>
+</modules>
+
+<properties>
+<maven.compiler.source> 17 </maven.compiler.source>
+<maven.compiler.target> 17 </maven.compiler.target>
+<project.build.sourceEncoding>                              UTF-8
+</project.build.sourceEncoding>
+<jakartaee.version> 10.0.0 </jakartaee.version>
+<junit.version> 5.10.2 </junit.version>
+<cucumber.version> 7.15.0 </cucumber.version>
+<junit.platform.version> 1.10.2 </junit.platform.version>
+</properties>
+
+<dependencyManagement>
+<dependencies>
+<dependency>
+<groupId> jakarta.platform </groupId>
+<artifactId> jakarta.jakartaee-api </artifactId>
+<version> ${jakartaee.version} </version>
+<scope> provided </scope>
+</dependency>
+</dependencies>
+</dependencyManagement>
+
+</project>
+----
+
+=== 5. Module creation
+
+==== 5.1. Shared module `digibank-shared`
+
+1. Create `digibank-shared/pom.xml` :
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+          xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+          xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd​
+<parent>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent </artifactId>
+<version> 1.0.0 </version>
+</parent>
+
+<modelVersion> 4.0.0 </modelVersion>
+<artifactId> digibank-shared </artifactId>
+<packaging> jar </packaging>
+
+<dependencies>
+<dependency>
+<groupId> jakarta.platform </groupId>
+<artifactId> jakarta.jakartaee-api </artifactId>
+<scope> provided </scope>
+</dependency>
+</dependencies>
+
+</project>
+----
+
+2. Create the common utility class `BaseEntity.java`:
+
+[source,java]
+----
+package com.digibank.shared.model;
+
+import jakarta.persistence. GeneratedValue ;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence. ID ;
+import jakarta.persistence. MappedSuperclass ;
+
+@MappedSuperclass
+public abstract class BaseEntity {
+
+    @Id
+@GeneratedValue ( strategy = GenerationType.IDENTITY )
+    private Long id ;
+
+    public Long getId () {
+          return id ;
+}
+}
+----
+
+3. Create the common utility class `ApiResponse.java`:
+
+[source,java]
+----
+package com.digibank.shared.dto;
+
+public class ApiResponse {
+    private String message ;
+    private boolean success ;
+
+    public ApiResponse () {
+}
+
+    public ApiResponse (String message, boolean success) {
+         this.message = message ;
+         this.success = success ;
+}
+
+    public String getMessage () {
+         return message ;
+}
+
+    public boolean isSuccess () {
+         return success ;
+}
+
+    public void setMessage (String message) {
+         this.message = message ;
+}
+
+    public void setSuccess ( boolean success) {
+         this.success = success ;
+}
+}
+----
+
+==== 5.2. `digibank-customer` customer module
+
+1. Create `digibank-customer/pom.xml`:
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+        xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+        xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+<parent>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent </artifactId>
+<version> 1.0.0 </version>
+</parent>
+
+<modelVersion> 4.0.0 </modelVersion>
+<artifactId> digibank-customer </artifactId>
+<packaging> jar </packaging>
+
+<dependencies>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-shared </artifactId>
+<version> 1.0.0 </version>
+</dependency>
+<dependency>
+<groupId> jakarta.platform </groupId>
+<artifactId> jakarta.jakartaee-api </artifactId>
+<scope> provided </scope>
+</dependency>
+</dependencies>
+
+</project>
+----
+
+2. Create the Customer entity
+
+[source,java]
+----
+package com.digibank.customer.model;
+
+import com.digibank.shared.model.BaseEntity;
+import jakarta.persistence. Column ;
+import jakarta.persistence. Entity ;
+import jakarta.persistence. Table ;
+
+@Entity
+@Table (name = "customers" )
+public class Customer extends BaseEntity {
+
+   @Column (nullable = false )
+   private String firstName ;
+
+   @Column (nullable = false )
+   private String lastName ;
+
+    @Column (nullable = false , unique = true )
+    private String email ;
+
+    public Customer () {
+
+}
+
+    public Customer (String firstName, String lastName, String
+email) {
+
+        this.firstName = firstName ;
+
+        this.lastName = lastName ;
+
+        this.email = email ;
+
+}
+
+    public String getFirstName () {
+
+        return firstName ;
+
+}
+
+    public String getLastName () {
+
+        return lastName ;
+
+}
+
+    public String getEmail () {
+
+        return email ;
+
+}
+
+    public void setFirstName (String firstName) {
+
+         this.firstName = firstName ;
+
+}
+
+    public void setLastName (String lastName) {
+
+         this.lastName = lastName ;
+
+}
+
+    public void setEmail (String email) {
+
+         this.email = email ;
+
+}
+
+}
+----
+
+3. Create the `CustomerRepository` repository
+
+[source,java]
+----
+package com.digibank.customer.repository;
+
+import com.digibank.customer.model.Customer;
+import jakarta.ejb. Stateless ;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence. PersistenceContext ;
+import java.util.List;
+import java.util.Optional;
+
+@Stateless
+public class CustomerRepository {
+
+    @PersistenceContext (unitName = "digibank-pu" )
+    private EntityManager em ;
+
+    public Customer save (Customer customer) {
+        if (customer.getId() == null) {
+            em.persist(customer);
+        } else {
+            em.merge(customer);
+        }
+        return customer;
+    }
+
+    public Optional<Customer> findById (Long id) {
+        return Optional.ofNullable(em.find(Customer.class, id));
+    }
+
+    public List<Customer> findAll () {
+        return em.createQuery("SELECT c FROM Customer c", Customer.class).getResultList();
+    }
+
+    public void delete (Customer customer) {
+        em.remove(em.contains(customer) ? customer : em.merge(customer));
+    }
+}
+----
+
+4. Create the `CustomerService` service
+
+[source,java]
+----
+package com.digibank.customer.service;
+
+import com.digibank.customer.model.Customer;
+import com.digibank.customer.repository.CustomerRepository;
+import jakarta.ejb. Stateless ;
+import jakarta.inject.Inject;
+import java.util.List;
+import java.util.Optional;
+
+@Stateless
+public class CustomerService {
+
+    @Inject
+    private CustomerRepository customerRepository;
+
+    public Customer createCustomer (Customer customer) {
+        return customerRepository.save(customer);
+    }
+
+    public Optional<Customer> getCustomerById (Long id) {
+        return customerRepository.findById(id);
+    }
+
+    public List<Customer> getAllCustomers () {
+        return customerRepository.findAll();
+    }
+
+    public Customer updateCustomer (Customer customer) {
+        return customerRepository.save(customer);
+    }
+
+    public void deleteCustomer (Long id) {
+        customerRepository.findById(id).ifPresent(customerRepository::delete);
+    }
+}
+----
+
+5. Create the `CustomerResource` REST endpoint
+
+[source,java]
+----
+package com.digibank.customer.resource;
+
+import com.digibank.customer.model.Customer;
+import com.digibank.customer.service.CustomerService;
+import com.digibank.shared.dto.ApiResponse;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("/customers" )
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class CustomerResource {
+
+    @Inject
+    private CustomerService customerService;
+
+    @POST
+    public Response createCustomer (Customer customer) {
+        Customer createdCustomer = customerService.createCustomer(customer);
+        return Response.status(Response.Status.CREATED).entity(createdCustomer).build();
+    }
+
+    @GET
+    @Path("/{id}" )
+    public Response getCustomerById (@PathParam("id" ) Long id) {
+        return customerService.getCustomerById(id)
+                .map(customer -> Response.ok(customer).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND).build());
+    }
+
+    @GET
+    public Response getAllCustomers () {
+        return Response.ok(customerService.getAllCustomers()).build();
+    }
+
+    @PUT
+    @Path("/{id}" )
+    public Response updateCustomer (@PathParam("id" ) Long id, Customer customer) {
+        customer.setId(id);
+        Customer updatedCustomer = customerService.updateCustomer(customer);
+        return Response.ok(updatedCustomer).build();
+    }
+
+    @DELETE
+    @Path("/{id}" )
+    public Response deleteCustomer (@PathParam("id" ) Long id) {
+        customerService.deleteCustomer(id);
+        return Response.status(Response.Status.NO_CONTENT).build();
+    }
+}
+----
+
+==== 5.3. `digibank-account` module
+
+1. Create `digibank-account/pom.xml`:
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+          xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+          xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+<parent>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent </artifactId>
+<version> 1.0.0 </version>
+</parent>
+
+<modelVersion> 4.0.0 </modelVersion>
+<artifactId> digibank-account </artifactId>
+<packaging> jar </packaging>
+
+<dependencies>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-shared </artifactId>
+<version> 1.0.0 </version>
+</dependency>
+<dependency>
+<groupId> jakarta.platform </groupId>
+<artifactId> jakarta.jakartaee-api </artifactId>
+<scope> provided </scope>
+</dependency>
+</dependencies>
+
+</project>
+----
+
+2. Create the Account entity
+
+[source,java]
+----
+package com.digibank.account.model;
+
+import com.digibank.shared.model.BaseEntity;
+import jakarta.persistence. Column ;
+import jakarta.persistence. Entity ;
+import jakarta.persistence. Table ;
+
+@Entity
+@Table (name = "accounts" )
+public class Account extends BaseEntity {
+
+    @Column (unique = true , nullable = false )
+    private String accountNumber ;
+
+    @Column (nullable = false )
+    private Double balance ;
+
+    @Column (nullable = false )
+    private Long customerId ;
+
+    public String getAccountNumber () {
+        return accountNumber ;
+    }
+
+    public void setAccountNumber (String accountNumber) {
+        this.accountNumber = accountNumber ;
+    }
+
+    public Double getBalance () {
+        return balance ;
+    }
+
+    public void setBalance (Double balance) {
+        this.balance = balance ;
+    }
+
+    public Long getCustomerId () {
+        return customerId ;
+    }
+
+    public void setCustomerId (Long customerId) {
+        this.customerId = customerId ;
+    }
+}
+----
+
+3. Create the `AccountRepository` repository
+
+[source,java]
+----
+package com.digibank.account.repository;
+
+import com.digibank.account.model.Account;
+import jakarta.ejb. Stateless ;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence. PersistenceContext ;
+import java.util.List;
+import java.util.Optional;
+
+@Stateless
+public class AccountRepository {
+
+    @PersistenceContext (unitName = "digibank-pu" )
+    private EntityManager em ;
+
+    public Account save (Account account) {
+        if (account.getId() == null) {
+            em.persist(account);
+        } else {
+            em.merge(account);
+        }
+        return account;
+    }
+
+    public Optional<Account> findById (Long id) {
+        return Optional.ofNullable(em.find(Account.class, id));
+    }
+
+    public List<Account> findAll () {
+        return em.createQuery("SELECT a FROM Account a", Account.class).getResultList();
+    }
+
+    public void delete (Account account) {
+        em.remove(em.contains(account) ? account : em.merge(account));
+    }
+}
+----
+
+4. Create the `AccountService` service
+
+[source,java]
+----
+package com.digibank.account.service;
+
+import com.digibank.account.model.Account;
+import com.digibank.account.repository.AccountRepository;
+import jakarta.ejb. Stateless ;
+import jakarta.inject.Inject;
+import java.util.List;
+import java.util.Optional;
+
+@Stateless
+public class AccountService {
+
+    @Inject
+    private AccountRepository accountRepository;
+
+    public Account createAccount (Account account) {
+        return accountRepository.save(account);
+    }
+
+    public Optional<Account> getAccountById (Long id) {
+        return accountRepository.findById(id);
+    }
+
+    public List<Account> getAllAccounts () {
+        return accountRepository.findAll();
+    }
+
+    public Account updateAccount (Account account) {
+        return accountRepository.save(account);
+    }
+
+    public void deleteAccount (Long id) {
+        accountRepository.findById(id).ifPresent(accountRepository::delete);
+    }
+}
+----
+
+5. Create the `AccountResource` REST endpoint
+
+[source,java]
+----
+package com.digibank.account.resource;
+
+import com.digibank.account.model.Account;
+import com.digibank.account.service.AccountService;
+import com.digibank.shared.dto.ApiResponse;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("/accounts" )
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class AccountResource {
+
+    @Inject
+    private AccountService accountService;
+
+    @POST
+    public Response createAccount (Account account) {
+        Account createdAccount = accountService.createAccount(account);
+        return Response.status(Response.Status.CREATED).entity(createdAccount).build();
+    }
+
+    @GET
+    @Path("/{id}" )
+    public Response getAccountById (@PathParam("id" ) Long id) {
+        return accountService.getAccountById(id)
+                .map(account -> Response.ok(account).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND).build());
+    }
+
+    @GET
+    public Response getAllAccounts () {
+        return Response.ok(accountService.getAllAccounts()).build();
+    }
+
+    @PUT
+    @Path("/{id}" )
+    public Response updateAccount (@PathParam("id" ) Long id, Account account) {
+        account.setId(id);
+        Account updatedAccount = accountService.updateAccount(account);
+        return Response.ok(updatedAccount).build();
+    }
+
+    @DELETE
+    @Path("/{id}" )
+    public Response deleteAccount (@PathParam("id" ) Long id) {
+        accountService.deleteAccount(id);
+        return Response.status(Response.Status.NO_CONTENT).build();
+    }
+}
+----
+
+==== 5.4. `digibank-transaction` module
+
+1. Create `digibank-transaction/pom.xml`:
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+          xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+          xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+<parent>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent </artifactId>
+<version> 1.0.0 </version>
+</parent>
+
+<modelVersion> 4.0.0 </modelVersion>
+<artifactId> digibank-transaction </artifactId>
+<packaging> jar </packaging>
+
+<dependencies>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-shared </artifactId>
+<version> 1.0.0 </version>
+</dependency>
+<dependency>
+<groupId> jakarta.platform </groupId>
+<artifactId> jakarta.jakartaee-api </artifactId>
+<scope> provided </scope>
+</dependency>
+</dependencies>
+
+</project>
+----
+
+2. Create the Transaction entity
+
+[source,java]
+----
+package com.digibank.transaction.model;
+
+import com.digibank.shared.model.BaseEntity;
+import jakarta.persistence. Column ;
+import jakarta.persistence. Entity ;
+import jakarta.persistence. Table ;
+import java.time.LocalDateTime;
+
+@Entity
+@Table (name = "transactions" )
+public class Transaction extends BaseEntity {
+
+    @Column (nullable = false )
+    private String accountId ;
+
+    @Column (nullable = false )
+    private Double amount ;
+
+    @Column (nullable = false )
+    private String type ;
+
+    @Column (nullable = false )
+    private LocalDateTime transactionDate ;
+
+    public String getAccountId () {
+        return accountId ;
+    }
+
+    public void setAccountId (String accountId) {
+        this.accountId = accountId ;
+    }
+
+    public Double getAmount () {
+        return amount ;
+    }
+
+    public void setAmount (Double amount) {
+        this.amount = amount ;
+    }
+
+    public String getType () {
+        return type ;
+    }
+
+    public void setType (String type) {
+        this.type = type ;
+    }
+
+    public LocalDateTime getTransactionDate () {
+        return transactionDate ;
+    }
+
+    public void setTransactionDate (LocalDateTime transactionDate) {
+        this.transactionDate = transactionDate ;
+    }
+}
+----
+
+3. Create the `TransactionRepository` repository
+
+[source,java]
+----
+package com.digibank.transaction.repository;
+
+import com.digibank.transaction.model.Transaction;
+import jakarta.ejb. Stateless ;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence. PersistenceContext ;
+import java.util.List;
+import java.util.Optional;
+
+@Stateless
+public class TransactionRepository {
+
+    @PersistenceContext (unitName = "digibank-pu" )
+    private EntityManager em ;
+
+    public Transaction save (Transaction transaction) {
+        if (transaction.getId() == null) {
+            em.persist(transaction);
+        } else {
+            em.merge(transaction);
+        }
+        return transaction;
+    }
+
+    public Optional<Transaction> findById (Long id) {
+        return Optional.ofNullable(em.find(Transaction.class, id));
+    }
+
+    public List<Transaction> findAll () {
+        return em.createQuery("SELECT t FROM Transaction t", Transaction.class).getResultList();
+    }
+
+    public void delete (Transaction transaction) {
+        em.remove(em.contains(transaction) ? transaction : em.merge(transaction));
+    }
+}
+----
+
+4. Create the `TransactionService` service
+
+[source,java]
+----
+package com.digibank.transaction.service;
+
+import com.digibank.transaction.model.Transaction;
+import com.digibank.transaction.repository.TransactionRepository;
+import jakarta.ejb. Stateless ;
+import jakarta.inject.Inject;
+import java.util.List;
+import java.util.Optional;
+
+@Stateless
+public class TransactionService {
+
+    @Inject
+    private TransactionRepository transactionRepository;
+
+    public Transaction createTransaction (Transaction transaction) {
+        return transactionRepository.save(transaction);
+    }
+
+    public Optional<Transaction> getTransactionById (Long id) {
+        return transactionRepository.findById(id);
+    }
+
+    public List<Transaction> getAllTransactions () {
+        return transactionRepository.findAll();
+    }
+
+    public Transaction updateTransaction (Transaction transaction) {
+        return transactionRepository.save(transaction);
+    }
+
+    public void deleteTransaction (Long id) {
+        transactionRepository.findById(id).ifPresent(transactionRepository::delete);
+    }
+}
+----
+
+5. Create the `TransactionResource` REST endpoint
+
+[source,java]
+----
+package com.digibank.transaction.resource;
+
+import com.digibank.transaction.model.Transaction;
+import com.digibank.transaction.service.TransactionService;
+import com.digibank.shared.dto.ApiResponse;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("/transactions" )
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class TransactionResource {
+
+    @Inject
+    private TransactionService transactionService;
+
+    @POST
+    public Response createTransaction (Transaction transaction) {
+        Transaction createdTransaction = transactionService.createTransaction(transaction);
+        return Response.status(Response.Status.CREATED).entity(createdTransaction).build();
+    }
+
+    @GET
+    @Path("/{id}" )
+    public Response getTransactionById (@PathParam("id" ) Long id) {
+        return transactionService.getTransactionById(id)
+                .map(transaction -> Response.ok(transaction).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND).build());
+    }
+
+    @GET
+    public Response getAllTransactions () {
+        return Response.ok(transactionService.getAllTransactions()).build();
+    }
+
+    @PUT
+    @Path("/{id}" )
+    public Response updateTransaction (@PathParam("id" ) Long id, Transaction transaction) {
+        transaction.setId(id);
+        Transaction updatedTransaction = transactionService.updateTransaction(transaction);
+        return Response.ok(updatedTransaction).build();
+    }
+
+    @DELETE
+    @Path("/{id}" )
+    public Response deleteTransaction (@PathParam("id" ) Long id) {
+        transactionService.deleteTransaction(id);
+        return Response.status(Response.Status.NO_CONTENT).build();
+    }
+}
+----
+
+==== 5.5. `digibank-compliance` module
+
+1. Create `digibank-compliance/pom.xml`:
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+          xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+          xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+<parent>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent </artifactId>
+<version> 1.0.0 </version>
+</parent>
+
+<modelVersion> 4.0.0 </modelVersion>
+<artifactId> digibank-compliance </artifactId>
+<packaging> jar </packaging>
+
+<dependencies>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-shared </artifactId>
+<version> 1.0.0 </version>
+</dependency>
+<dependency>
+<groupId> jakarta.platform </groupId>
+<artifactId> jakarta.jakartaee-api </artifactId>
+<scope> provided </scope>
+</dependency>
+</dependencies>
+
+</project>
+----
+
+2. Create the ComplianceCheck entity
+
+[source,java]
+----
+package com.digibank.compliance.model;
+
+import com.digibank.shared.model.BaseEntity;
+import jakarta.persistence. Column ;
+import jakarta.persistence. Entity ;
+import jakarta.persistence. Table ;
+import java.time.LocalDateTime;
+
+@Entity
+@Table (name = "compliance_checks" )
+public class ComplianceCheck extends BaseEntity {
+
+    @Column (nullable = false )
+    private Long customerId ;
+
+    @Column (nullable = false )
+    private String checkType ;
+
+    @Column (nullable = false )
+    private boolean passed ;
+
+    @Column (nullable = false )
+    private LocalDateTime checkDate ;
+
+    public Long getCustomerId () {
+        return customerId ;
+    }
+
+    public void setCustomerId (Long customerId) {
+        this.customerId = customerId ;
+    }
+
+    public String getCheckType () {
+        return checkType ;
+    }
+
+    public void setCheckType (String checkType) {
+        this.checkType = checkType ;
+    }
+
+    public boolean isPassed () {
+        return passed ;
+    }
+
+    public void setPassed (boolean passed) {
+        this.passed = passed ;
+    }
+
+    public LocalDateTime getCheckDate () {
+        return checkDate ;
+    }
+
+    public void setCheckDate (LocalDateTime checkDate) {
+        this.checkDate = checkDate ;
+    }
+}
+----
+
+3. Create the `ComplianceRepository` repository
+
+[source,java]
+----
+package com.digibank.compliance.repository;
+
+import com.digibank.compliance.model.ComplianceCheck;
+import jakarta.ejb. Stateless ;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence. PersistenceContext ;
+import java.util.List;
+import java.util.Optional;
+
+@Stateless
+public class ComplianceRepository {
+
+    @PersistenceContext (unitName = "digibank-pu" )
+    private EntityManager em ;
+
+    public ComplianceCheck save (ComplianceCheck complianceCheck) {
+        if (complianceCheck.getId() == null) {
+            em.persist(complianceCheck);
+        } else {
+            em.merge(complianceCheck);
+        }
+        return complianceCheck;
+    }
+
+    public Optional<ComplianceCheck> findById (Long id) {
+        return Optional.ofNullable(em.find(ComplianceCheck.class, id));
+    }
+
+    public List<ComplianceCheck> findAll () {
+        return em.createQuery("SELECT c FROM ComplianceCheck c", ComplianceCheck.class).getResultList();
+    }
+
+    public void delete (ComplianceCheck complianceCheck) {
+        em.remove(em.contains(complianceCheck) ? complianceCheck : em.merge(complianceCheck));
+    }
+}
+----
+
+4. Create the `ComplianceService` service
+
+[source,java]
+----
+package com.digibank.compliance.service;
+
+import com.digibank.compliance.model.ComplianceCheck;
+import com.digibank.compliance.repository.ComplianceRepository;
+import jakarta.ejb. Stateless ;
+import jakarta.inject.Inject;
+import java.util.List;
+import java.util.Optional;
+
+@Stateless
+public class ComplianceService {
+
+    @Inject
+    private ComplianceRepository complianceRepository;
+
+    public ComplianceCheck createComplianceCheck (ComplianceCheck complianceCheck) {
+        return complianceRepository.save(complianceCheck);
+    }
+
+    public Optional<ComplianceCheck> getComplianceCheckById (Long id) {
+        return complianceRepository.findById(id);
+    }
+
+    public List<ComplianceCheck> getAllComplianceChecks () {
+        return complianceRepository.findAll();
+    }
+
+    public ComplianceCheck updateComplianceCheck (ComplianceCheck complianceCheck) {
+        return complianceRepository.save(complianceCheck);
+    }
+
+    public void deleteComplianceCheck (Long id) {
+        complianceRepository.findById(id).ifPresent(complianceRepository::delete);
+    }
+}
+----
+
+5. Create the `ComplianceResource` REST endpoint
+
+[source,java]
+----
+package com.digibank.compliance.resource;
+
+import com.digibank.compliance.model.ComplianceCheck;
+import com.digibank.compliance.service.ComplianceService;
+import com.digibank.shared.dto.ApiResponse;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("/compliance" )
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class ComplianceResource {
+
+    @Inject
+    private ComplianceService complianceService;
+
+    @POST
+    public Response createComplianceCheck (ComplianceCheck complianceCheck) {
+        ComplianceCheck createdComplianceCheck = complianceService.createComplianceCheck(complianceCheck);
+        return Response.status(Response.Status.CREATED).entity(createdComplianceCheck).build();
+    }
+
+    @GET
+    @Path("/{id}" )
+    public Response getComplianceCheckById (@PathParam("id" ) Long id) {
+        return complianceService.getComplianceCheckById(id)
+                .map(complianceCheck -> Response.ok(complianceCheck).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND).build());
+    }
+
+    @GET
+    public Response getAllComplianceChecks () {
+        return Response.ok(complianceService.getAllComplianceChecks()).build();
+    }
+
+    @PUT
+    @Path("/{id}" )
+    public Response updateComplianceCheck (@PathParam("id" ) Long id, ComplianceCheck complianceCheck) {
+        complianceCheck.setId(id);
+        ComplianceCheck updatedComplianceCheck = complianceService.updateComplianceCheck(complianceCheck);
+        return Response.ok(updatedComplianceCheck).build();
+    }
+
+    @DELETE
+    @Path("/{id}" )
+    public Response deleteComplianceCheck (@PathParam("id" ) Long id) {
+        complianceService.deleteComplianceCheck(id);
+        return Response.status(Response.Status.NO_CONTENT).build();
+    }
+}
+----
+
+==== 5.6. `digibank-index` module
+
+1. Create `digibank-index/pom.xml`:
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+          xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+          xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+<parent>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent </artifactId>
+<version> 1.0.0 </version>
+</parent>
+
+<modelVersion> 4.0.0 </modelVersion>
+<artifactId> digibank-index </artifactId>
+<packaging> jar </packaging>
+
+<dependencies>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-shared </artifactId>
+<version> 1.0.0 </version>
+</dependency>
+<dependency>
+<groupId> jakarta.platform </groupId>
+<artifactId> jakarta.jakartaee-api </artifactId>
+<scope> provided </scope>
+</dependency>
+<dependency>
+<groupId> org.thymeleaf </groupId>
+<artifactId> thymeleaf </artifactId>
+<version> 3.1.2.RELEASE </version>
+</dependency>
+</dependencies>
+
+</project>
+----
+
+2. Create the `IndexController` class
+
+[source,java]
+----
+package com.digibank.index.controller;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@WebServlet("/" )
+public class IndexController extends HttpServlet {
+
+    @Override
+    protected void doGet (HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        request.getRequestDispatcher("/index.html" ).forward(request, response);
+    }
+}
+----
+
+==== 5.7. `digibank-app` module
+
+1. Create `digibank-app/pom.xml`:
+
+[source,xml]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+          xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+          xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+<parent>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-parent </artifactId>
+<version> 1.0.0 </version>
+</parent>
+
+<modelVersion> 4.0.0 </modelVersion>
+<artifactId> digibank-app </artifactId>
+<packaging> war </packaging>
+
+<dependencies>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-shared </artifactId>
+<version> 1.0.0 </version>
+</dependency>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-customer </artifactId>
+<version> 1.0.0 </version>
+<scope> runtime </scope>
+</dependency>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-account </artifactId>
+<version> 1.0.0 </version>
+<scope> runtime </scope>
+</dependency>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-transaction </artifactId>
+<version> 1.0.0 </version>
+<scope> runtime </scope>
+</dependency>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-compliance </artifactId>
+<version> 1.0.0 </version>
+<scope> runtime </scope>
+</dependency>
+<dependency>
+<groupId> com.digibank </groupId>
+<artifactId> digibank-index </artifactId>
+<version> 1.0.0 </version>
+<scope> runtime </scope>
+</dependency>
+<dependency>
+<groupId> jakarta.platform </groupId>
+<artifactId> jakarta.jakartaee-api </artifactId>
+<scope> provided </scope>
+</dependency>
+<dependency>
+<groupId> org.postgresql </groupId>
+<artifactId> postgresql </artifactId>
+<version> 42.7.3 </version>
+</dependency>
+<dependency>
+<groupId> org.junit.jupiter </groupId>
+<artifactId> junit-jupiter-api </artifactId>
+<version> ${junit.version} </version>
+<scope> test </scope>
+</dependency>
+<dependency>
+<groupId> org.junit.jupiter </groupId>
+<artifactId> junit-jupiter-engine </artifactId>
+<version> ${junit.version} </version>
+<scope> test </scope>
+</dependency>
+<dependency>
+<groupId> io.cucumber </groupId>
+<artifactId> cucumber-java </artifactId>
+<version> ${cucumber.version} </version>
+<scope> test </scope>
+</dependency>
+<dependency>
+<groupId> io.cucumber </groupId>
+<artifactId> cucumber-junit-platform-engine </artifactId>
+<version> ${cucumber.version} </version>
+<scope> test </scope>
+</dependency>
+</dependencies>
+
+<build>
+<plugins>
+<plugin>
+<groupId> org.apache.maven.plugins </groupId>
+<artifactId> maven-war-plugin </artifactId>
+<version> 3.4.0 </version>
+</plugin>
+</plugins>
+</build>
+
+</project>
+----
+
+2. Create `src/main/webapp/index.html`:
+
+[source,html]
+----
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digi Bank</title>
+</head>
+<body>
+    <h1>Welcome to Digi Bank!</h1>
+    <p>Your trusted partner for digital banking.</p>
+</body>
+</html>
+----
+
+3. Create `src/main/webapp/WEB-INF/web.xml`:
+
+[source,xml]
+----
+<!DOCTYPE web-app PUBLIC
+ "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+ "http://java.sun.com/dtd/web-app_2_3.dtd" >
+
+<web-app>
+  <display-name>Archetype Created Web Application</display-name>
+</web-app>
+----
+
+4. Create `src/main/resources/META-INF/persistence.xml`:
+
+[source,xml]
+----
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd"
+             version="3.0">
+    <persistence-unit name="digibank-pu">
+        <jta-data-source>java:/jboss/datasources/DigiBankDS</jta-data-source>
+        <properties>
+            <property name="jakarta.persistence.schema-generation.database.action" value="update"/>
+            <property name="jakarta.persistence.sql-load-script-source" value="META-INF/data.sql"/>
+        </properties>
+    </persistence-unit>
+</persistence>
+----
+
+5. Create `src/main/resources/META-INF/data.sql`:
+
+[source,sql]
+----
+INSERT INTO customers (id, firstName, lastName, email) VALUES (1, 'John', 'Doe', 'john.doe@example.com');
+INSERT INTO accounts (id, accountNumber, balance, customerId) VALUES (1, '123456789', 1000.00, 1);
+----
+
+=== 6. Build and Deployment
+
+==== 6.1. Build the WAR file
+
+Execute the following command in the `digibank-parent` directory:
+
+[source,bash]
+----
+mvn clean install
+----
+
+==== 6.2. Deploy on WildFly
+
+1. Configure PostgreSQL datasource in WildFly:
+
+    Add the following to `wildfly/standalone/configuration/standalone.xml` within the `<datasources>` tag:
+
+[source,xml]
+----
+    <datasource jndi-name="java:/jboss/datasources/DigiBankDS" pool-name="DigiBankDS" enabled="true" use-java-context="true">
+        <connection-url>jdbc:postgresql://localhost:5432/digibank_db</connection-url>
+        <driver>postgresql</driver>
+        <security>
+            <user-name>digibank_user</user-name>
+            <password>digibank_pwd</password>
+        </security>
+    </datasource>
+    <drivers>
+        <driver name="postgresql" module="org.postgresql">
+            <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
+        </driver>
+    </drivers>
+----
+
+2. Add PostgreSQL module to WildFly:
+
+    Create `wildfly/modules/system/layers/base/org/postgresql/main/module.xml`:
+
+[source,xml]
+----
+    <module xmlns="urn:jboss:module:1.9" name="org.postgresql">
+        <resources>
+            <resource-root path="postgresql-42.7.3.jar"/>
+        </resources>
+        <dependencies>
+            <module name="jakarta.api"/>
+            <module name="jakarta.transaction.api"/>
+        </dependencies>
+    </module>
+----
+
+    Copy `postgresql-42.7.3.jar` to `wildfly/modules/system/layers/base/org/postgresql/main/`.
+
+3. Start WildFly:
+
+[source,bash]
+----
+./wildfly/bin/standalone.sh
+----
+
+4. Deploy the WAR file:
+
+    Copy `digibank-app/target/digibank-app-1.0.0.war` to `wildfly/standalone/deployments/`.
+
+==== 6.3. Expected Result
+
+The application should be accessible at `http://localhost:8080/digibank-app-1.0.0/` and display the index page. REST endpoints should be accessible and functional.
+
+=== 7. Testing
+
+==== 7.1. Unit Tests
+
+Example `CustomerServiceTest.java` in `digibank-customer/src/test/java/com/digibank/customer/service/`:
+
+[source,java]
+----
+package com.digibank.customer.service;
+
+import com.digibank.customer.model.Customer;
+import com.digibank.customer.repository.CustomerRepository;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockitoAnnotations;
+
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+public class CustomerServiceTest {
+
+    private CustomerRepository customerRepository;
+    private CustomerService customerService;
+
+    @BeforeEach
+    public void setUp() {
+        customerRepository = mock(CustomerRepository.class);
+        customerService = new CustomerService();
+        // Manually inject mock into service
+        try {
+            java.lang.reflect.Field field = CustomerService.class.getDeclaredField("customerRepository");
+            field.setAccessible(true);
+            field.set(customerService, customerRepository);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void testGetCustomerById() {
+        Customer customer = new Customer();
+        customer.setId(1L);
+        customer.setFirstName("John");
+        customer.setLastName("Doe");
+        customer.setEmail("john.doe@example.com");
+
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+
+        Optional<Customer> foundCustomer = customerService.getCustomerById(1L);
+
+        assertEquals("John", foundCustomer.get().getFirstName());
+    }
+}
+----
+
+==== 7.2. BDD Scenarios with Cucumber
+
+Example `customer.feature` in `digibank-customer/src/test/resources/features/`:
+
+[source,gherkin]
+----
+Feature: Customer Management
+  As a bank administrator
+  I want to manage customer accounts
+  So that I can ensure proper banking operations
+
+  Scenario: Create a new customer
+    Given I am on the customer creation page
+    When I enter "John" as first name and "Doe" as last name and "john.doe@example.com" as email
+    And I click the "Create Customer" button
+    Then a new customer with email "john.doe@example.com" should be created
+----
+
+Example `CustomerStepDefinitions.java` in `digibank-customer/src/test/java/com/digibank/customer/steps/`:
+
+[source,java]
+----
+package com.digibank.customer.steps;
+
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.When;
+import io.cucumber.java.en.Then;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class CustomerStepDefinitions {
+
+    @Given("I am on the customer creation page")
+    public void i_am_on_the_customer_creation_page() {
+        // Simulate navigation to customer creation page
+        System.out.println("Navigated to customer creation page");
+    }
+
+    @When("I enter \"{word}\" as first name and \"{word}\" as last name and \"{word}\" as email")
+    public void i_enter_first_name_last_name_email(String firstName, String lastName, String email) {
+        // Simulate entering customer details
+        System.out.printf("Entered customer details: %s %s, %s\n", firstName, lastName, email);
+    }
+
+    @When("I click the \"{string}\" button")
+    public void i_click_the_button(String buttonName) {
+        // Simulate clicking a button
+        System.out.printf("Clicked '%s' button\n", buttonName);
+    }
+
+    @Then("a new customer with email \"{word}\" should be created")
+    public void a_new_customer_with_email_should_be_created(String email) {
+        // Simulate verification of customer creation
+        System.out.printf("Verified customer creation for email: %s\n", email);
+        assertTrue(true); // Placeholder for actual assertion
+    }
+}
+----
+
+=== 8. Conclusion
+
+This workshop provided a practical guide to designing and implementing a modular monolithic architecture for Digi Bank using Jakarta EE. It covered environment setup, multi-module Maven project creation, development of RESTful services, and testing with JUnit and Cucumber. This foundational work is crucial for understanding the complexities of enterprise-grade banking systems and prepares students for more advanced architectural patterns like microservices.

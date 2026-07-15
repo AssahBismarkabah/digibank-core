@@ -4,12 +4,6 @@
 
 *Cloud Computing Professional License*
 
-*University of the Mountains*
-
-By Engineer Willy Damtchou
-
-June 2026
-
 '''
 
 == Context
