@@ -1,0 +1,325 @@
+= Architecture Framework for Digi Bank: Needs Analysis, Stakeholders, Functions, Constraints, and Structural Choices
+
+ Cloud Computing Professional License
+June 2026
+
+''''
+
+[abstract]
+This document presents the initial architectural framework for Digi Bank, a new digital banking platform. It covers the business needs analysis, stakeholder identification, essential system functions, functional and non-functional constraints, a high-level target architecture, and a written justification of the structural choices made. This work fulfills the deliverables for Workshop 1.
+
+''''
+
+== 1. Business Needs Analysis
+
+Digi Bank is a newly chartered digital bank that intends to offer a full suite of retail banking services through online and mobile channels. Unlike traditional banks with legacy branch infrastructure, Digi Bank operates entirely in the digital space, which places unique demands on its core banking system.
+
+=== 1.1 Primary Business Drivers
+
+The following business drivers shape the architecture:
+
+* **Market entry as a digital-native bank**: Digi Bank must launch quickly with a competitive set of services -- account opening, funds transfers, payments, and credit products -- without the overhead of branch-based operations.
+* **Customer acquisition via frictionless onboarding**: The ability to onboard a customer entirely remotely, with integrated Know Your Customer (KYC) verification, is a core competitive requirement.
+* **Regulatory compliance from day one**: As a licensed financial institution, Digi Bank is subject to BaFin supervision, German banking law (KWG), European payment services directive (PSD2), and anti-money laundering regulations (AML). Compliance is not optional; it must be embedded in the system.
+* **Partner ecosystem enablement**: Digi Bank plans to offer banking-as-a-service capabilities to fintech partners via APIs, generating additional revenue streams.
+* **Future-proofing for growth**: The architecture must support an initial customer base in the thousands and scale to hundreds of thousands without requiring a rewrite.
+
+=== 1.2 Scope Boundaries
+
+The initial scope of Digi Bank covers:
+
+* Retail customer accounts (current accounts, savings accounts)
+* Domestic and SEPA payments (credit transfers, direct debits, instant payments)
+* Consumer credit products (personal loans, overdrafts)
+* KYC/AML compliance workflows
+* Partner API access for approved third parties
+
+Out of scope for the initial launch, but anticipated for future releases:
+
+* Business banking and corporate accounts
+* International payments and foreign exchange
+* Investment and wealth management products
+* Card issuing and acquiring
+
+''''
+
+== 2. Stakeholder Identification
+
+The table below identifies the main actors who interact with Digi Bank, classified by their relationship to the system.
+
+[cols="1,2,2,3", options="header"]
+|===
+| Category | Stakeholder | Role | Key Concerns
+| Internal | Bank Administrator | Manages user roles, system configuration, parameter maintenance | Operational control, audit trail, configuration management
+| Internal | Compliance Officer | Monitors KYC/AML alerts, reviews transactions, files regulatory reports | Case management, regulatory deadlines, evidence preservation
+| Internal | Operations Manager | Oversees payment processing, settlement, exception handling | Transaction lifecycles, reconciliation, STP rates
+| Internal | Customer Support Agent | Handles account inquiries, dispute resolution, user assistance | Customer context, case history, system performance
+| Internal | Risk Manager | Assesses credit risk, defines lending policies, monitors fraud patterns | Risk models, policy enforcement, alert accuracy
+| Internal | Auditor (Internal) | Reviews system logs, access records, compliance evidence | Immutable logs, data integrity, report generation
+| External | Retail Customer | Opens accounts, initiates payments, views balances, applies for credit | User experience, availability, data privacy
+| External | Payment Systems | SEPA Clearing, Instant Payment infrastructure, SWIFT | Message standards, settlement windows, availability
+| External | Fintech Partner | Accesses banking services via API (BaaS model) | API contract stability, rate limits, documentation
+| External | Regulatory Body (BaFin) | Supervises banking operations, conducts examinations | Regulatory reporting, data access, capital adequacy
+| External | External Auditor | Conducts statutory audits of financial statements and controls | Evidence collection, control testing, reporting standards
+| External | Identity Provider | Provides identity verification and biometric checks | Service reliability, data privacy compliance
+|===
+
+''''
+
+== 3. Essential System Functions
+
+The following business functions define the core capabilities Digi Bank must provide.
+
+=== 3.1 Customer Lifecycle Management
+
+* **Customer registration and profile management**: Identity capture, contact details, communication preferences.
+* **KYC verification workflow**: Document upload, identity verification, sanctions screening (UN, EU, OFAC), PEP checks, risk scoring.
+* **Customer due diligence (CDD)**: Tiered CDD based on risk profile, ongoing monitoring, periodic review triggers.
+* **Customer segregation**: Strict separation of customer data by consent and regulatory jurisdiction.
+
+=== 3.2 Account Management
+
+* **Account creation and lifecycle**: Current accounts (Girokonto) and savings accounts, account closure, freeze/unfreeze.
+* **Balance management**: Real-time balance calculation, available balance (including holds), interest accrual.
+* **Account hierarchy**: Primary account holder, joint accounts, authorized signatories.
+* **CASA (Current and Savings Accounts)**: Integrated management of transactional and savings products, automated sweeps.
+
+=== 3.3 Transaction and Payment Processing
+
+* **Credit transfers**: SEPA Credit Transfer (SCT), SEPA Instant Credit Transfer (SCT Inst).
+* **Direct debits**: SEPA Direct Debit (SDD Core and B2B), mandate management.
+* **Internal transfers**: Between own accounts, between Digi Bank customers.
+* **Standing orders and recurring payments**: Schedule management, execution, notifications.
+* **Transaction posting**: Double-entry bookkeeping, value dating, memo postings.
+
+=== 3.4 Credit and Loan Management
+
+* **Loan origination**: Application, credit scoring, approval workflow, disbursement.
+* **Loan servicing**: Repayment schedules, interest calculation (actuarial/method 360), outstanding balance tracking.
+* **Overdraft management**: Limit setting, utilization tracking, fee calculation.
+
+=== 3.5 Compliance and Regulatory
+
+* **AML transaction monitoring**: Rule-based and behavioral monitoring, suspicious activity detection, SAR filing.
+* **Sanctions screening**: Real-time screening of all parties against sanctioned entity lists.
+* **Regulatory reporting**: BaFin reporting (AnaCredit, liquidity, large exposures), ECB statistical reporting.
+* **Audit logging**: Immutable log of all financial and administrative operations, user access records.
+
+=== 3.6 Partner Integration
+
+* **API gateway**: RESTful API exposure for approved partners, rate limiting, authentication (OAuth 2.0 / PSD2 SCA).
+* **Webhook notifications**: Event-based notifications for partners (payment received, account status change).
+* **API documentation and sandbox**: Developer portal with interactive documentation and test environment.
+
+=== 3.7 Administrative Functions
+
+* **User and role management**: RBAC, segregation of duties, approval workflows.
+* **Parameter configuration**: Interest rates, fees, limits, business calendar.
+* **Monitoring and reporting**: System health dashboards, operational reports, business intelligence.
+
+''''
+
+== 4. System Constraints
+
+=== 4.1 Functional Constraints
+
+* **FC-01 Multi-regulatory compliance**: The system must support compliance with German banking law (KWG), European regulations (PSD2, GDPR, AMLD), and BaFin supervisory requirements simultaneously.
+* **FC-02 Full audit trail**: Every financial transaction and every administrative change must be recorded with exact timestamp, actor identity, before/after state, and reason code.
+* **FC-03 Real-time payment processing**: SEPA Instant payments must be processed and settled within the 10-second window mandated by the European Payments Council scheme rules.
+* **FC-04 Customer data portability**: The system must support customer data export in a machine-readable format upon request (GDPR Article 20).
+* **FC-05 Strong Customer Authentication (SCA)**: All electronic payment transactions must incorporate multi-factor authentication as required by PSD2 RTS.
+
+=== 4.2 Non-Functional Constraints
+
+* **NFR-01 Availability**: Core payment and transaction services must achieve 99.99% availability (approximately 53 minutes downtime per year). Planned maintenance windows must not exceed 4 hours per month. The system must support zero-downtime deployments.
+* **NFR-02 Security**: All data in transit must be encrypted with TLS 1.3. All sensitive data at rest must be encrypted with AES-256. The system must implement role-based access control (RBAC) with segregation of duties. Penetration testing and vulnerability scanning must be integrated into the CI/CD pipeline.
+* **NFR-03 Traceability and auditability**: The audit log must be immutable (write-once, read-many) and cryptographically verifiable. Log retention must comply with the 10-year statutory retention period under German commercial law (HGB Section 257).
+* **NFR-04 Scalability**: The system must support a minimum of 10,000 concurrent users at launch, with the ability to scale horizontally to 100,000 concurrent users within 12 months. Transaction throughput must sustain at least 500 TPS initially, scaling to 2,000 TPS.
+* **NFR-05 Performance**: Customer-facing page loads must complete within 2 seconds (95th percentile). Payment initiation must respond within 500ms. Batch processing (end-of-day, interest calculation) must complete within the defined batch window (midnight to 6:00 AM).
+* **NFR-06 Regulatory compliance**: The system must maintain compliance with KWG, PSD2, GDPR, AMLD, and BaFin circulars. Compliance controls must be auditable and demonstrable to regulators on demand.
+* **NFR-07 Maintainability**: The system must use a modular architecture where business domains can be developed, tested, and deployed independently. Codebases must follow consistent coding standards with automated quality gates.
+* **NFR-08 Disaster recovery**: Recovery Time Objective (RTO) must not exceed 1 hour for critical services. Recovery Point Objective (RPO) must not exceed 15 minutes. The disaster recovery site must be geographically separate and regularly tested.
+* **NFR-09 Data privacy**: Personal data must be pseudonymized in non-production environments. Data retention and deletion policies must be automated and auditable. Consent management must be granular and time-bound.
+* **NFR-10 Interoperability**: External interfaces must use ISO 20022 XML messages for payment transactions. RESTful APIs must follow OpenAPI 3.0 specifications. The system must interoperate with SEPA payment infrastructures.
+
+''''
+
+== 5. High-Level Target Architecture
+
+.Digi Bank High-Level Architecture
+[plantuml, "digi-bank-architecture", "png"]
+....
+@startuml Digi Bank - High-Level Architecture
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FEFEFE
+
+actor Customer
+actor Partner
+actor Admin
+
+node "API Gateway" as gw {
+    interface "REST API" as api
+}
+
+Customer --> api: HTTPS
+Partner --> api: HTTPS
+Admin --> api: HTTPS
+
+node "Core Banking System\n(Modular Monolith)" as core {
+    artifact "Customer Module" as customer
+    artifact "Account Module\n(CASA)" as account
+    artifact "Payment Module\n(SEPA)" as payment
+    artifact "KYC / AML\nModule" as kyc
+    artifact "Credit & Loan\nModule" as credit
+
+    customer --> account: Java call
+    customer --> kyc: Java call
+    payment --> account: Java call
+    credit --> account: Java call
+}
+
+api --> core: HTTP/REST
+
+database PostgreSQL as postgres
+
+core --> postgres: JDBC
+
+node "External Systems" {
+    artifact "Payment\nConnector" as pconn
+    artifact "Sanctions\nScreener" as sanct
+    artifact "Identity\nProvider" as idv
+}
+
+payment --> pconn: HTTP/REST
+kyc --> sanct: HTTP/REST
+kyc --> idv: HTTP/REST
+
+@enduml
+....
+
+''''
+
+== 6. Structural Choices -- Written Justification
+
+This section explains and defends the key architectural decisions made in the proposed target architecture. Each choice is linked to the business needs, stakeholder concerns, and constraints identified in the preceding sections.
+
+=== 6.1 Modular Monolith as the Primary Architecture Style
+
+**Decision**: Adopt a modular monolith organized by bounded contexts, deployed as a single executable unit, rather than a distributed microservices architecture.
+
+**Rationale**: Digi Bank is a new entrant with an unproven customer base and no existing system to decompose. A modular monolith provides:
+
+* **Data consistency**: Banking transactions require strong consistency (ACID) within a single transaction. A distributed system would introduce eventual consistency complexities that add risk without proven benefit at this stage.
+* **Deployment simplicity**: A single deployable unit means simpler CI/CD pipelines, fewer operational concerns, and a smaller initial team. The estimated team size of 3-5 developers can effectively maintain a modular monolith.
+* **Lower operational cost**: Eliminates the need for service mesh, container orchestration, distributed tracing, and related infrastructure that would add complexity and cost without clear return.
+* **Clear migration path**: Each module is a bounded context with well-defined interfaces. When the customer base grows and the team expands, individual modules (e.g., Payments, KYC) can be extracted into separate services without rewriting.
+
+This aligns with the recommendation in Kleppmann's *Designing Data-Intensive Applications* to prefer strong consistency within a service boundary and use asynchronous communication only where necessary.
+
+=== 6.2 API Gateway as the Sole Entry Point
+
+**Decision**: All client requests pass through a single API Gateway that handles authentication, rate limiting, and routing.
+
+**Rationale**: An API Gateway provides:
+
+* **Centralized security enforcement**: OAuth 2.0 / OIDC authentication, PSD2 Strong Customer Authentication (SCA), and rate limiting are implemented once rather than duplicated across modules.
+* **Protocol translation**: The gateway can expose REST, GraphQL, or WebSocket endpoints to different clients while the backend core remains consistent.
+* **Evolution flexibility**: The gateway can route requests to different versions of a module during migration, enabling blue-green deployments and gradual module extraction.
+
+=== 6.3 Bounded Contexts as Module Boundaries
+
+**Decision**: Business capabilities are separated into modules (Customer, Account, Transaction, Payment, Credit, KYC, Notification, Reporting) with explicit interface contracts.
+
+**Rationale**: This follows Domain-Driven Design principles and Eric Evans' concept of bounded contexts. Each module:
+
+* Owns its data and logic, preventing unregulated cross-module access.
+* Exposes a strict public API (Java interface or service facade) that hides internal implementation.
+* Can be independently tested, and in the future independently deployed, without changing the rest of the system.
+
+The module boundaries follow the *Essential Functions* identified in Section 3. Each module maps to a distinct business capability.
+
+=== 6.4 Shared Kernel Pattern
+
+**Decision**: Common domain concepts (Customer ID, Account Number, Money, Currency, Transaction Status) and cross-cutting concerns (Audit, Security, Integration Bus) are consolidated in a shared kernel.
+
+**Rationale**: Without a shared kernel, each module would duplicate fundamental banking primitives, leading to inconsistency and costly mapping code. The shared kernel is:
+
+* **Minimal and stable**: Only concepts that are truly universal are included. Domain-specific logic remains in individual modules.
+* **Versioned carefully**: Changes to the shared kernel require coordination across all modules, which is feasible in a monolith but would be problematic in a distributed system -- another reason to start with a monolith.
+* **Audit and event logging are centralized**: The immutable audit store writes are managed by a single component, ensuring completeness and consistency of the audit trail (constraint FC-02 and NFR-03).
+
+=== 6.5 Relational Database (PostgreSQL) as Primary Store
+
+**Decision**: Use PostgreSQL as the primary data store, with append-only audit tables and Redis for caching.
+
+**Rationale**: Banking systems require strong consistency, ACID transactions, and complex query capabilities:
+
+* **Transactional integrity**: Double-entry bookkeeping, account balance calculation, and payment settlement all depend on atomic, isolated transactions. A relational database is the proven choice for this workload.
+* **Audit requirements**: Append-only tables with cryptographic hash chains satisfy HGB Section 257 retention requirements and provide verifiable audit trails.
+* **Schema enforcement**: The structured nature of banking data (IBAN, amounts, dates, status codes) benefits from schema validation at the database level.
+* **Familiarity**: The team is expected to have strong SQL skills; introducing NoSQL stores adds learning curve without clear benefit at this stage.
+* **KYC artifacts** (scanned documents, identity proofs) are stored in a document store, acknowledging that unstructured data has different access patterns.
+
+=== 6.6 Spring Boot as the Implementation Framework
+
+**Decision**: Implement the modular monolith using Spring Boot (Java 21+).
+
+**Rationale**: Spring Boot is the dominant framework for banking applications in the European market:
+
+* **Maturity and ecosystem**: Spring Security (OAuth 2.0, PSD2 SCA), Spring Data JPA, Spring Cloud Gateway, and Spring Integration provide battle-tested components for every architectural concern.
+* **Module support**: Spring Boot's component scanning and package-level configuration naturally support a modular monolith structure.
+* **Testing support**: Spring Boot Test, Testcontainers, and MockMvc enable thorough integration testing.
+* **Migration path**: When modules are extracted to microservices, Spring Boot's configuration model and embedded server architecture make the transition straightforward.
+
+This decision is consistent with the technical direction of Workshop 3 (Doc 02), which will implement a Spring Boot monolith.
+
+=== 6.7 ISO 20022 for Payment Interoperability
+
+**Decision**: Use ISO 20022 XML messages for all external payment communications.
+
+**Rationale**: ISO 20022 is the mandated message standard for SEPA payments and is becoming the global standard for payment messaging. Adopting it from the start ensures:
+
+* Compliance with SEPA scheme rules (SEPA Credit Transfer, SEPA Instant Credit Transfer, SEPA Direct Debit).
+* Interoperability with all European payment infrastructures (EBA Clearing, RT1, TARGET2).
+* Preparedness for the incoming ISO 20022 migration for SWIFT MT messages (cross-border payments).
+
+=== 6.8 Compliance Embedded vs. External
+
+**Decision**: Embed KYC/AML compliance logic as a first-class module within the core monolith, integrated via domain events rather than as a separate external system.
+
+**Rationale**: Compliance is not an add-on in banking -- it is a core business function. Embedding it within the monolith provides:
+
+* **Consistent enforcement**: Every customer lifecycle event and every transaction can be checked against KYC/AML rules without network calls to an external system (performance constraint NFR-05).
+* **Atomic compliance holds**: A transaction can be placed on hold atomically with its posting, preventing race conditions where a transaction clears before screening completes.
+* **Audit completeness**: The compliance module writes directly to the shared audit log, ensuring a single, coherent audit trail.
+
+Sanctions screening (against WorldCheck, Refinitiv, or similar lists) does require an external service call, but the compliance module manages this as a controlled, asynchronous interaction with clearly defined timeout and fallback behavior.
+
+''''
+
+== 7. Summary of Key Decisions
+
+[cols="2,2,4", options="header"]
+|===
+| Decision | Choice | Primary Drivers
+| Architecture style | Modular monolith | Data consistency, team size, operational simplicity, clear migration path
+| Entry point | Single API Gateway | Centralized security, protocol translation, evolution flexibility
+| Module boundaries | Bounded contexts by business capability | Separation of concerns, future extractability, team autonomy
+| Shared concepts | Shared kernel (minimal and stable) | Consistency of domain primitives, reduced duplication
+| Primary database | PostgreSQL (relational) | Transactional integrity, audit requirements, schema enforcement
+| Implementation framework | Spring Boot (Java 21+) | Market standard for banking, ecosystem maturity, testability
+| Payment messaging | ISO 20022 XML | SEPA compliance, interoperability, regulatory alignment
+| Compliance integration | First-class module within monolith | Consistent enforcement, atomic holds, audit coherence
+|===
+
+''''
+
+== 8. Next Steps
+
+This architectural framework establishes the foundation for subsequent workshops:
+
+* **Workshop 2 (Doc 03 -- Jakarta EE Monolith)**: Group 3 will implement a Jakarta EE version of this architecture, demonstrating the modular monolith pattern in a Java EE environment.
+* **Workshop 3 (Doc 02 -- Spring Boot Monolith)**: The same architecture will be reimplemented using Spring Boot, providing a direct comparison between the two Java enterprise frameworks.
+
+The bounded contexts defined here will serve as the extraction candidates when the system eventually evolves toward microservices in a future iteration.

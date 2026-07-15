@@ -1,0 +1,49 @@
+@startuml Digi Bank - High-Level Architecture
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FEFEFE
+
+title Digi Bank\nHigh-Level Architecture
+
+actor Customer
+actor Partner
+actor Admin
+
+node "API Gateway" as gw {
+    interface "REST API" as api
+}
+
+Customer --> api: HTTPS
+Partner --> api: HTTPS
+Admin --> api: HTTPS
+
+node "Core Banking System\n(Modular Monolith)" as core {
+    artifact "Customer Module" as customer
+    artifact "Account Module\n(CASA)" as account
+    artifact "Payment Module\n(SEPA)" as payment
+    artifact "KYC / AML\nModule" as kyc
+    artifact "Credit & Loan\nModule" as credit
+
+    customer --> account: Java call
+    customer --> kyc: Java call
+    payment --> account: Java call
+    credit --> account: Java call
+}
+
+api --> core: HTTP/REST
+
+database PostgreSQL as postgres
+
+core --> postgres: JDBC
+
+node "External Systems" {
+    artifact "Payment\nConnector" as pconn
+    artifact "Sanctions\nScreener" as sanct
+    artifact "Identity\nProvider" as idv
+}
+
+payment --> pconn: HTTP/REST
+kyc --> sanct: HTTP/REST
+kyc --> idv: HTTP/REST
+
+@enduml
