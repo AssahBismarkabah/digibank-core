@@ -1,0 +1,199 @@
+= Digi Bank -- Jakarta EE 10 Modular Monolith
+
+== Overview
+
+This is the reference implementation of the Digi Bank core banking platform
+using **Jakarta EE 10** (formerly Java EE). It is a modular monolith -- a
+single deployable unit with strong module boundaries, designed to be split
+into microservices later if needed.
+
+The project was built from the Workshop 2 specification
+(`03_dg-bank_migration_jakarta_ee.adoc`) but applies **10 modernizations**
+over the original document's legacy conventions. See <<_modernizations_applied>>
+for details.
+
+== REST Endpoints
+
+All endpoints are under `http://localhost:8080/digibank-app/api/`.
+
+|===
+| Module | Method | Path | Description
+
+| Customer
+| `GET` | `/api/customers` | List all customers
+| `POST` | `/api/customers` | Create customer
+| `GET` | `/api/customers/{id}` | Get customer by ID
+| `PUT` | `/api/customers/{id}` | Update customer
+| `DELETE` | `/api/customers/{id}` | Delete customer
+
+| Account
+| `GET` | `/api/accounts` | List all accounts
+| `POST` | `/api/accounts` | Create account
+| `GET` | `/api/accounts/{id}` | Get account by ID
+| `PUT` | `/api/accounts/{id}` | Update account
+| `DELETE` | `/api/accounts/{id}` | Delete account
+| `GET` | `/api/accounts/by-customer/{id}` | Find accounts for a customer
+
+| Transaction
+| `GET` | `/api/transactions` | List all transactions
+| `POST` | `/api/transactions` | Create transaction
+| `GET` | `/api/transactions/{id}` | Get transaction by ID
+| `DELETE` | `/api/transactions/{id}` | Delete transaction
+| `GET` | `/api/transactions/by-account/{id}` | Find transactions for an account
+
+| Compliance
+| `GET` | `/api/compliance` | List all KYC/AML records
+| `POST` | `/api/compliance` | Create KYC/AML record
+| `GET` | `/api/compliance/{id}` | Get record by ID
+| `PUT` | `/api/compliance/{id}` | Update record
+| `DELETE` | `/api/compliance/{id}` | Delete record
+| `GET` | `/api/compliance/by-customer/{id}` | Find records for a customer
+|===
+
+== Tech Stack
+
+|===
+| Component | Technology | Version
+| Language | Java | 17+
+| Platform | Jakarta EE | 10.0.0 (REST 3.1, CDI 4.0, Persistence 3.1, Validation 3.0, Servlet 6.0)
+| Server | WildFly (EE 10 variant) | 40.0.1.Final
+| Database | PostgreSQL | 16
+| JDBC Driver | org.postgresql:postgresql | 42.7.13
+| Testing | JUnit Jupiter + Weld JUnit 5 + Mockito | 5.12.2 / 5.0.0.Final / 5.14.2
+| Build | Maven | 3.9+
+|===
+
+== Modernizations Applied
+
+This implementation modernizes the legacy Jakarta EE conventions from the
+original workshop document. Each change is justified below.
+
+=== 1. BigDecimal for Monetary Values
+
+*Workshop document:* Used `double` for `Account.balance` and
+`Transaction.amount`.
+
+*Modernized:* All monetary fields use `java.math.BigDecimal` with
+`@Digits(integer = 10, fraction = 2)` and `@PositiveOrZero` validation.
+
+*Why:* Floating-point types (`double`, `float`) cannot represent decimal
+values exactly, leading to rounding errors in financial calculations.
+`BigDecimal` provides exact precision with explicit `RoundingMode`.
+
+=== 2. DTO Pattern (Request/Response Separation)
+
+*Workshop document:* Exposed JPA entities directly as REST response bodies.
+
+*Modernized:* Every module has dedicated Request and Response DTOs.
+Requests carry validation annotations; Responses never expose internal
+entity state.
+
+*Why:* JPA entities contain persistence concerns (lazy loading, ORM
+proxies, bidirectional relationships) that break serialization. DTOs
+decouple the API contract from the persistence model.
+
+=== 3. Bean Validation
+
+*Workshop document:* No validation annotations on entities or endpoints.
+
+*Modernized:* All entities and DTOs carry `@NotNull`, `@NotBlank`,
+`@Email`, `@Digits`, `@PositiveOrZero`, and `@Pattern` annotations.
+REST endpoints use `@Valid @NotNull` on request parameters.
+
+*Why:* Validation at the boundary catches invalid data before it reaches
+business logic or the database, providing consistent error responses.
+
+=== 4. ExceptionMapper Pattern
+
+*Workshop document:* No structured error handling; exceptions propagate
+as server error pages or stack traces.
+
+*Modernized:* Two `@Provider` classes --
+`ValidationExceptionMapper` and `EntityNotFoundExceptionMapper` --
+intercept exceptions and return consistent JSON:
+
+[source,json]
+----
+{"error": "Validation failed", "violations": {"name": "must not be blank"}}
+{"error": "Customer not found with id: 42"}
+----
+
+*Why:* Clients (SPAs, mobile apps, other services) need machine-readable
+error responses, not HTML error pages.
+
+=== 5. JAX-RS Application Class (No web.xml)
+
+*Workshop document:* Used `web.xml` (Servlet 2.3 DTD from 2001) to
+configure the servlet container. Recreated by the user early on.
+
+*Modernized:* A single `DigiBankApplication.java` class with
+`@ApplicationPath("/api")` handles all REST configuration. Jakarta EE 10
+discovers `@Path` and `@Provider` classes automatically via classpath
+scanning.
+
+*Why:* Jakarta EE 10 (Servlet 6.0) supports annotation-only configuration.
+Removing `web.xml` eliminates a legacy artifact and its outdated DTD.
+
+=== 6. CDI beans.xml (Jakarta EE 10 Schema)
+
+*Workshop document:* Used `beans.xml` with `javax.*` namespace (CDI 1.0).
+
+*Modernized:* All modules have `beans.xml` with namespace
+`https://jakarta.ee/xml/ns/jakartaee`, version `4.0`, and
+`bean-discovery-mode="annotated"`.
+
+*Why:* Jakarta EE 10 uses CDI 4.0. The `annotated` mode (default) is more
+explicit and avoids scanning every class in the archive.
+
+=== 7. No web.xml
+
+*Workshop document:* The original `web.xml` dated from the Servlet 2.3
+era (2001).
+
+*Modernized:* Removed entirely. Servlet and REST configuration is handled
+via annotations (`@WebServlet`, `@ApplicationPath`).
+
+*Why:* Modern Jakarta EE applications should not ship 20+ year old
+configuration files that conflict with annotation-based discovery.
+
+=== 8. Weld JUnit 5 Testing
+
+*Workshop document:* No testing infrastructure specified.
+
+*Modernized:* Added Weld JUnit 5 (`@EnableWeld`) tests that boot a real
+CDI container and inject beans directly. Mock beans replace database
+dependencies via `MockBean.builder()`.
+
+*Why:* Weld JUnit tests validate CDI injection, scopes, interceptors,
+and decorators without starting a full application server. They run in
+milliseconds, not minutes.
+
+=== 9. Docker Compose for PostgreSQL
+
+*Workshop document:* No database provisioning specified.
+
+*Modernized:* `docker-compose.yml` defines PostgreSQL 16 with a named
+volume and healthcheck (`pg_isready`).
+
+*Why:* One command (`docker compose up -d`) provisions the database with
+the correct credentials, eliminating manual setup.
+
+=== 10. Java 17+ Compatibility
+
+*Workshop document:* Based on Java 8 (Jakarta EE 8 conventions).
+
+*Modernized:* Targets Java 17, uses records only where compatible with
+JAX-RS, and uses `equals()`/`hashCode()` on `BaseEntity` via `Objects.equals()`
+instead of Lombok.
+
+*Why:* Java 17 is the current LTS. It provides `sealed` classes, pattern
+matching, and better performance. All modern WildFly versions require
+JDK 17+.
+
+== Build Verification
+
+[source,shell]
+----
+mvn clean install    # Builds all 8 modules, runs unit tests
+mvn test             # 4/4 tests pass (Weld CDI with mock beans)
+----

@@ -1,7 +1,30 @@
+# IDE
 .idea/
 .vscode/
 *.iml
+.project
+.classpath
+.factorypath
+.settings/
+.apt_generated/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+target/
+build/
+*.class
+
+# Logs & temp
 *.log
 *.tmp
+*~
+*.swp
+*.swo
+*.orig
+
+# Dependencies
 node_modules/
-target/
+.gradle/
