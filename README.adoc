@@ -1,6 +1,5 @@
 = Digi Bank
 
-----
 
 Digi Bank is a reference implementation of a core banking platform built as a
 modular monolith using Jakarta EE 10. It demonstrates modern Jakarta EE
@@ -13,8 +12,6 @@ designed to be split into microservices later if needed.
 This is an educational project for the Cloud Computing Professional License
 course (June 2026). It serves as the reference Jakarta EE implementation
 before migrating to Spring Boot.
-
-----
 
 == To start using Digi Bank
 
