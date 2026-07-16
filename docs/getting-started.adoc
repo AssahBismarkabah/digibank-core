@@ -7,7 +7,7 @@
 Docker is required to run both PostgreSQL and WildFly. The deployment uses
 Docker Compose to orchestrate both services.
 
-* link:https://docs.docker.com/engine/install/[Install Docker Desktop]
+* link:https://docs.docker.com/engine/install/[Install Docker]
 * Verify: `docker --version` and `docker compose version`
 
 === Java 17+ (Optional -- only if building locally)
