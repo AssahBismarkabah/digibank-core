@@ -15,6 +15,7 @@ Thumbs.db
 # Build
 target/
 build/
+bin/
 *.class
 
 # Logs & temp
