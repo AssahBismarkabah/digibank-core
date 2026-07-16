@@ -64,4 +64,4 @@ For the full story, head over to the link:docs/getting-started.adoc[Getting Star
 
 This is an educational project for the Cloud Computing Professional License
 course. It is the reference Jakarta EE implementation. A Spring Boot migration
-is planned as the next workshop exercise.
+is being done on the `main` branch.
