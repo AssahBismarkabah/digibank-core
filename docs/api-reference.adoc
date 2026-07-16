@@ -1,0 +1,190 @@
+= API Reference
+
+All endpoints are under `http://localhost:8080/digibank-app/api/`.
+
+== Customers
+
+|===
+| Method | Path | Description | Status Codes
+| `GET` | `/api/customers` | List all customers | 200
+| `POST` | `/api/customers` | Create a customer | 201, 400
+| `GET` | `/api/customers/{id}` | Get customer by ID | 200, 404
+| `PUT` | `/api/customers/{id}` | Update customer | 200, 400, 404
+| `DELETE` | `/api/customers/{id}` | Delete customer | 204, 404
+|===
+
+=== Create Customer
+
+[source,shell]
+----
+curl -X POST http://localhost:8080/digibank-app/api/customers \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@example.com"
+  }'
+----
+
+Response (201):
+
+[source,json]
+----
+{
+  "id": 1,
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com"
+}
+----
+
+=== Validation Error
+
+[source,shell]
+----
+curl -X POST http://localhost:8080/digibank-app/api/customers \
+  -H "Content-Type: application/json" \
+  -d '{"firstName": "", "email": "bad-email"}'
+----
+
+Response (400):
+
+[source,json]
+----
+{
+  "error": "Validation failed",
+  "violations": {
+    "createCustomer.arg0.email": "Email must be a valid format",
+    "createCustomer.arg0.firstName": "First name is required"
+  }
+}
+----
+
+== Accounts
+
+|===
+| Method | Path | Description | Status Codes
+| `GET` | `/api/accounts` | List all accounts | 200
+| `POST` | `/api/accounts` | Create an account | 201, 400
+| `GET` | `/api/accounts/{id}` | Get account by ID | 200, 404
+| `PUT` | `/api/accounts/{id}` | Update account | 200, 400, 404
+| `DELETE` | `/api/accounts/{id}` | Delete account | 204, 404
+| `GET` | `/api/accounts/by-customer/{id}` | Find accounts for a customer | 200
+|===
+
+=== Create Account
+
+[source,shell]
+----
+curl -X POST http://localhost:8080/digibank-app/api/accounts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": 1,
+    "accountNumber": "DE100123456789",
+    "accountType": "CHECKING",
+    "currency": "EUR",
+    "balance": 1000.00
+  }'
+----
+
+Response (201):
+
+[source,json]
+----
+{
+  "id": 1,
+  "accountNumber": "DE100123456789",
+  "balance": 1000.0,
+  "currency": "EUR",
+  "accountType": "CHECKING",
+  "customerId": 1
+}
+----
+
+== Transactions
+
+|===
+| Method | Path | Description | Status Codes
+| `GET` | `/api/transactions` | List all transactions | 200
+| `POST` | `/api/transactions` | Create a transaction | 201, 400
+| `GET` | `/api/transactions/{id}` | Get transaction by ID | 200, 404
+| `DELETE` | `/api/transactions/{id}` | Delete transaction | 204, 404
+| `GET` | `/api/transactions/by-account/{id}` | Find transactions for an account | 200
+|===
+
+=== Create Transaction
+
+[source,shell]
+----
+curl -X POST http://localhost:8080/digibank-app/api/transactions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountId": 1,
+    "amount": 250.00,
+    "transactionType": "DEPOSIT",
+    "description": "Salary deposit"
+  }'
+----
+
+Response (201):
+
+[source,json]
+----
+{
+  "id": 1,
+  "referenceNumber": "a1b2c3d4-...",
+  "amount": 250.0,
+  "transactionType": "DEPOSIT",
+  "description": "Salary deposit",
+  "transactionDate": "2026-07-16T20:47:00.650623",
+  "accountId": 1
+}
+----
+
+Transaction types: `DEPOSIT`, `WITHDRAWAL`, `TRANSFER`, `PAYMENT`
+
+== Compliance / KYC
+
+|===
+| Method | Path | Description | Status Codes
+| `GET` | `/api/compliance` | List all KYC/AML records | 200
+| `POST` | `/api/compliance` | Create a KYC/AML record | 201, 400
+| `GET` | `/api/compliance/{id}` | Get record by ID | 200, 404
+| `PUT` | `/api/compliance/{id}` | Update record | 200, 400, 404
+| `DELETE` | `/api/compliance/{id}` | Delete record | 204, 404
+| `GET` | `/api/compliance/by-customer/{id}` | Find records for a customer | 200
+|===
+
+=== Create Compliance Check
+
+[source,shell]
+----
+curl -X POST http://localhost:8080/digibank-app/api/compliance \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": 1,
+    "checkType": "KYC",
+    "status": "PENDING",
+    "checkedBy": "SYSTEM",
+    "remarks": "Initial KYC check"
+  }'
+----
+
+Response (201):
+
+[source,json]
+----
+{
+  "id": 1,
+  "customerId": 1,
+  "checkType": "KYC",
+  "status": "PENDING",
+  "checkedBy": "SYSTEM",
+  "checkDate": "2026-07-16T20:47:16.254935",
+  "remarks": "Initial KYC check"
+}
+----
+
+Check types: `KYC`, `AML`, `SANCTIONS_SCREENING`, `PEP_CHECK`, `CDD`, `TRANSACTION_MONITORING`
+
+Status values: `PENDING`, `PASSED`, `FAILED`, `REVIEW_REQUIRED`

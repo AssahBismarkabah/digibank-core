@@ -1,0 +1,126 @@
+= Modernizations Applied
+
+This implementation modernizes the legacy Jakarta EE conventions from the
+original workshop document. Each change is justified below.
+
+== 1. BigDecimal for Monetary Values
+
+*Workshop document:* Used `double` for `Account.balance` and
+`Transaction.amount`.
+
+*Modernized:* All monetary fields use `java.math.BigDecimal` with
+`@Digits(integer = 10, fraction = 2)` and `@PositiveOrZero` validation.
+
+*Why:* Floating-point types (`double`, `float`) cannot represent decimal
+values exactly, leading to rounding errors in financial calculations.
+`BigDecimal` provides exact precision with explicit `RoundingMode`.
+
+== 2. DTO Pattern (Request/Response Separation)
+
+*Workshop document:* Exposed JPA entities directly as REST response bodies.
+
+*Modernized:* Every module has dedicated Request and Response DTOs.
+Requests carry validation annotations; Responses never expose internal
+entity state.
+
+*Why:* JPA entities contain persistence concerns (lazy loading, ORM
+proxies, bidirectional relationships) that break serialization. DTOs
+decouple the API contract from the persistence model.
+
+== 3. Bean Validation
+
+*Workshop document:* No validation annotations on entities or endpoints.
+
+*Modernized:* All entities and DTOs carry `@NotNull`, `@NotBlank`,
+`@Email`, `@Digits`, `@PositiveOrZero`, and `@Pattern` annotations.
+REST endpoints use `@Valid @NotNull` on request parameters.
+
+*Why:* Validation at the boundary catches invalid data before it reaches
+business logic or the database, providing consistent error responses.
+
+== 4. ExceptionMapper Pattern
+
+*Workshop document:* No structured error handling; exceptions propagate
+as server error pages or stack traces.
+
+*Modernized:* Two `@Provider` classes --
+`ValidationExceptionMapper` and `EntityNotFoundExceptionMapper` --
+intercept exceptions and return consistent JSON:
+
+[source,json]
+----
+{"error": "Validation failed", "violations": {"name": "must not be blank"}}
+{"error": "Customer not found with id: 42"}
+----
+
+*Why:* Clients (SPAs, mobile apps, other services) need machine-readable
+error responses, not HTML error pages.
+
+== 5. JAX-RS Application Class (No web.xml)
+
+*Workshop document:* Used `web.xml` (Servlet 2.3 DTD from 2001) to
+configure the servlet container.
+
+*Modernized:* A single `DigiBankApplication.java` class with
+`@ApplicationPath("/api")` handles all REST configuration. Jakarta EE 10
+discovers `@Path` and `@Provider` classes automatically via classpath
+scanning.
+
+*Why:* Jakarta EE 10 (Servlet 6.0) supports annotation-only configuration.
+Removing `web.xml` eliminates a legacy artifact and its outdated DTD.
+
+== 6. CDI beans.xml (Jakarta EE 10 Schema)
+
+*Workshop document:* Used `beans.xml` with `javax.*` namespace (CDI 1.0).
+
+*Modernized:* All modules have `beans.xml` with namespace
+`https://jakarta.ee/xml/ns/jakartaee`, version `4.0`, and
+`bean-discovery-mode="annotated"`.
+
+*Why:* Jakarta EE 10 uses CDI 4.0. The `annotated` mode (default) is more
+explicit and avoids scanning every class in the archive.
+
+== 7. No web.xml
+
+*Workshop document:* The original `web.xml` dated from the Servlet 2.3
+era (2001).
+
+*Modernized:* Removed entirely. Servlet and REST configuration is handled
+via annotations (`@WebServlet`, `@ApplicationPath`).
+
+*Why:* Modern Jakarta EE applications should not ship 20+ year old
+configuration files that conflict with annotation-based discovery.
+
+== 8. Weld JUnit 5 Testing
+
+*Workshop document:* No testing infrastructure specified.
+
+*Modernized:* Added Weld JUnit 5 (`@EnableWeld`) tests that boot a real
+CDI container and inject beans directly. Mock beans replace database
+dependencies via `MockBean.builder()`.
+
+*Why:* Weld JUnit tests validate CDI injection, scopes, interceptors,
+and decorators without starting a full application server. They run in
+milliseconds, not minutes.
+
+== 9. Docker Compose for PostgreSQL
+
+*Workshop document:* No database provisioning specified.
+
+*Modernized:* `docker-compose.yml` defines PostgreSQL 16 with a named
+volume and healthcheck (`pg_isready`).
+
+*Why:* One command (`docker compose up -d`) provisions the database with
+the correct credentials, eliminating manual setup.
+
+== 10. Java 17+ Compatibility
+
+*Workshop document:* Based on Java 8 (Jakarta EE 8 conventions).
+
+*Modernized:* Targets Java 17, uses records only where compatible with
+JAX-RS, and uses `equals()`/`hashCode()` on `BaseEntity` via
+`Objects.equals()` instead of Lombok.
+
+*Why:* Java 17 is the current LTS. It provides `sealed` classes, pattern
+matching, and better performance. All modern WildFly versions require
+JDK 17+.

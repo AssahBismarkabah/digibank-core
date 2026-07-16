@@ -1,0 +1,152 @@
+= Getting Started
+
+== Prerequisites
+
+=== Docker
+
+Docker is required to run both PostgreSQL and WildFly. The deployment uses
+Docker Compose to orchestrate both services.
+
+* link:https://docs.docker.com/engine/install/[Install Docker Desktop]
+* Verify: `docker --version` and `docker compose version`
+
+=== Java 17+ (Optional -- only if building locally)
+
+If you want to build the project outside of Docker:
+
+* link:https://adoptium.net/temurin/releases/?version=17[Download Eclipse Temurin 17]
+* Verify: `java -version`
+
+=== Apache Maven 3.9+ (Optional -- only if building locally)
+
+* link:https://maven.apache.org/download.cgi[Download Maven]
+* Verify: `mvn -version`
+
+If you prefer the multi-stage Docker build, Java and Maven are not needed
+locally -- everything runs inside the container.
+
+== Deployment
+
+=== Option A: One-Command (Recommended)
+
+[source,shell]
+----
+cd digibank-parent
+make verify
+----
+
+This runs three steps automatically:
+
+1. `make build` -- builds the Maven project
+2. `make up` -- starts PostgreSQL and WildFly via Docker Compose
+3. `make smoke-test` -- waits for WildFly and runs 23 automated tests
+
+=== Option B: Multi-Stage Docker (No Local JDK/Maven)
+
+If you do not have Java or Maven installed, the Dockerfile builds everything
+inside a container:
+
+[source,shell]
+----
+cd digibank-parent
+docker compose up --build
+----
+
+The first build takes longer (downloading base images + Maven dependencies).
+Subsequent builds use Docker layer caching.
+
+=== Option C: Step by Step
+
+[source,shell]
+----
+cd digibank-parent
+
+# 1. Build the project
+mvn clean package -DskipTests
+
+# 2. Start services in background
+docker compose up --build -d
+
+# 3. Wait for WildFly to be ready
+make wait
+
+# 4. Run smoke tests
+./scripts/smoke-test.sh
+----
+
+== Smoke Tests
+
+The smoke test suite (`scripts/smoke-test.sh`) verifies all REST endpoints:
+
+* Customer CRUD (create, list, get by ID, 404 handling)
+* Account CRUD (create with BigDecimal, list, get by customer)
+* Transaction CRUD (create with UUID reference, list by account)
+* Compliance/KYC CRUD (create with enum types, list by customer)
+* Validation error format (consistent JSON error+violations response)
+
+The script is idempotent -- it uses timestamp-based unique data and can be
+run multiple times against the same database.
+
+[source,shell]
+----
+./scripts/smoke-test.sh
+----
+
+Expected output:
+
+[source]
+----
+============================================
+  Digi Bank -- Smoke Test Suite
+============================================
+  ...
+  ALL 23 TESTS PASSED
+============================================
+----
+
+== Stopping Everything
+
+[source,shell]
+----
+cd digibank-parent
+make down          # Stop and remove containers
+docker compose down -v   # Also remove database volume
+----
+
+== Troubleshooting
+
+=== Port Conflicts
+
+If port 8080 or 5433 is already in use, edit `docker-compose.yml` to change
+the host port mapping:
+
+[source,yaml]
+----
+ports:
+  - "8081:8080"   # Change 8080 to an available port
+----
+
+=== WildFly Fails to Start
+
+Check the logs:
+
+[source,shell]
+----
+docker compose logs wildfly
+----
+
+Common issues:
+
+* PostgreSQL not ready yet (WildFly depends on it via healthcheck)
+* Port conflict on 8080 or 9990
+* Insufficient Docker memory (allocate at least 4GB)
+
+=== Database Connection Issues
+
+Verify PostgreSQL is running:
+
+[source,shell]
+----
+docker compose logs postgres
+docker compose exec postgres pg_isready -U digibank_user -d digibank_db
+----

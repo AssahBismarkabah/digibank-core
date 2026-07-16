@@ -1,0 +1,86 @@
+= Project Structure
+
+== Module Overview
+
+The project is a multi-module Maven project with 8 modules:
+
+```
+digibank-parent/
+├── pom.xml                     # Parent POM (dependency management, plugin config)
+├── docker-compose.yml          # PostgreSQL + WildFly orchestration
+├── Makefile                    # Build, deploy, smoke-test targets
+├── scripts/
+│   └── smoke-test.sh           # Automated 23-test smoke suite
+├── docker/
+│   └── wildfly/
+│       └── Dockerfile          # Multi-stage WildFly image with auto-deploy
+├── digibank-shared/            # JAR -- shared base classes
+├── digibank-customer/          # JAR -- customer management
+├── digibank-account/           # JAR -- account management (BigDecimal)
+├── digibank-transaction/       # JAR -- transaction processing
+├── digibank-compliance/        # JAR -- KYC/AML compliance checks
+├── digibank-index/             # JAR -- landing page servlet
+└── digibank-app/               # WAR -- assembly module, persistence.xml
+```
+
+== Module Dependencies
+
+```
+digibank-app (WAR)
+├── digibank-shared (JAR)       -- BaseEntity, ApiResponse, ExceptionMappers
+├── digibank-customer (JAR)     -- Customer entity, repository, service, REST
+├── digibank-account (JAR)      -- Account entity, repository, service, REST
+├── digibank-transaction (JAR)  -- Transaction entity, repository, service, REST
+├── digibank-compliance (JAR)   -- ComplianceCheck entity, repository, service, REST
+└── digibank-index (JAR)        -- IndexController (landing page)
+```
+
+All business modules depend on `digibank-shared` for base classes and DTOs.
+The `digibank-app` WAR module assembles everything into a single deployable unit.
+
+== Build Order
+
+Modules are built in dependency order automatically by Maven:
+
+1. `digibank-shared` -- no dependencies
+2. `digibank-customer` -- depends on shared
+3. `digibank-account` -- depends on shared
+4. `digibank-transaction` -- depends on shared
+5. `digibank-compliance` -- depends on shared
+6. `digibank-index` -- depends on shared
+7. `digibank-app` -- depends on all above (WAR assembly)
+
+== Key Design Decisions
+
+=== Modular Monolith
+
+All modules are separate JARs at compile time but are packaged into a single
+WAR at deployment. Module boundaries are enforced by Maven dependency scope
+(`runtime` for cross-module dependencies in the WAR). This structure allows
+splitting into microservices later by extracting a JAR module into its own
+deployment unit.
+
+=== Shared Kernel
+
+`digibank-shared` contains:
+
+* `BaseEntity` -- common JPA base class with `@Id`, `@Version`, `equals`/`hashCode`
+* `ApiResponse` -- generic response wrapper
+* `ValidationExceptionMapper` -- consistent JSON error format for validation failures
+* `EntityNotFoundExceptionMapper` -- 404 handling for missing entities
+
+=== BigDecimal for Money
+
+All monetary values use `BigDecimal` with `@Digits(integer = 10, fraction = 2)`
+and `@PositiveOrZero` validation. See link:modernizations.adoc[Modernizations]
+for the full rationale.
+
+=== Testing Strategy
+
+|===
+| Layer | Tool | Scope
+| Unit tests | JUnit 5 + Mockito | Plain Java logic
+| CDI component tests | Weld JUnit 5 | CDI injection, scopes, interceptors
+| BDD acceptance tests | Cucumber + JUnit Platform | Customer scenarios (Given/When/Then)
+| Smoke tests | Bash + curl | End-to-end API verification
+|===
