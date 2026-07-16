@@ -3,7 +3,7 @@
 ----
 
 Digi Bank is a reference implementation of a core banking platform built as a
-**modular monolith** using Jakarta EE 10. It demonstrates modern Jakarta EE
+modular monolith using Jakarta EE 10. It demonstrates modern Jakarta EE
 patterns: DTOs, Bean Validation, ExceptionMappers, BigDecimal for monetary
 values, CDI testing with Weld, and Docker Compose deployment.
 
@@ -16,15 +16,19 @@ before migrating to Spring Boot.
 
 ----
 
-== Quick Start
+== To start using Digi Bank
 
-=== Prerequisites
+See the link:docs/getting-started.adoc[Getting Started guide] for
+prerequisites, installation, and deployment instructions.
 
-* link:https://docs.docker.com/engine/install/[Docker Desktop] or Docker Engine 24+
-* link:https://adoptium.net/temurin/releases/?version=17[Java 17+ JDK] (only if building locally)
-* link:https://maven.apache.org/download.cgi[Apache Maven 3.9+] (only if building locally)
+== To start developing Digi Bank
 
-=== One-Command Deploy
+The link:docs/getting-started.adoc[Getting Started guide] covers everything
+from cloning the repository to running the automated smoke tests.
+
+If you want to run Digi Bank right away there are two options:
+
+##### You have Docker installed (recommended)
 
 [source,shell]
 ----
@@ -33,41 +37,34 @@ cd digibank-parent
 make verify
 ----
 
-This builds the project, starts PostgreSQL and WildFly via Docker Compose,
-waits for readiness, and runs 23 automated smoke tests.
-
-=== Step by Step
+##### You have Java 17+ and Maven 3.9+ installed
 
 [source,shell]
 ----
-# Build the project
+git clone <repo-url>
+cd digibank-parent
 mvn clean package -DskipTests
-
-# Start services
 docker compose up --build -d
-
-# Run smoke tests
 ./scripts/smoke-test.sh
-
-# Stop everything
-docker compose down
 ----
+
+For the full story, head over to the link:docs/getting-started.adoc[Getting Started guide].
 
 == Documentation
 
-|===
-| Document | Description
-| link:docs/getting-started.adoc[Getting Started] | Prerequisites, installation, configuration, troubleshooting
-| link:docs/api-reference.adoc[API Reference] | Complete REST endpoint reference with examples
-| link:docs/modernizations.adoc[Modernizations] | 10 improvements over legacy Jakarta EE conventions
-| link:docs/project-structure.adoc[Project Structure] | Module overview, dependencies, and build order
-|===
+* link:docs/getting-started.adoc[Getting Started] -- prerequisites, deployment, troubleshooting
+* link:docs/modernizations.adoc[Modernizations] -- 10 improvements over legacy Jakarta EE conventions
 
 == Tech Stack
 
-Java 17+ | Jakarta EE 10 | WildFly 40 | PostgreSQL 16 | Maven 3.9+
+* Java 17+
+* Jakarta EE 10 (REST 3.1, CDI 4.0, Persistence 3.1, Validation 3.0, Servlet 6.0)
+* WildFly 40
+* PostgreSQL 16
+* Apache Maven 3.9+
 
-== License
+== Project Status
 
-This project is for educational purposes as part of the Cloud Computing
-Professional License course.
+This is an educational project for the Cloud Computing Professional License
+course. It is the reference Jakarta EE implementation. A Spring Boot migration
+is planned as the next workshop exercise.
