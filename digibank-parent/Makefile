@@ -3,7 +3,7 @@
 # Makefile for deploying to WildFly via Docker Compose
 # =============================================================================
 
-.PHONY: all build deploy up down logs clean verify
+.PHONY: all build deploy up down logs wait smoke-test verify clean
 
 all: build deploy
 
@@ -68,35 +68,12 @@ wait:
 	exit 1
 
 # ---------------------------------------------------------------------------
-# Smoke test: verify endpoints and create sample data
+# Smoke test: automated verification of all REST endpoints
+# Uses scripts/smoke-test.sh for detailed pass/fail reporting
 # ---------------------------------------------------------------------------
 smoke-test:
-	@echo "==> Running Digi Bank smoke test..."
-	@echo "=== GET /api/customers (empty) ==="
-	curl -s http://localhost:8080/digibank-app/api/customers
-	@echo ""
-	@echo "=== POST /api/customers (create) ==="
-	curl -s -X POST http://localhost:8080/digibank-app/api/customers \
-		-H "Content-Type: application/json" \
-		-d '{"firstName":"Alice","lastName":"Smith","email":"alice@example.com"}'
-	@echo ""
-	@echo "=== GET /api/customers (with data) ==="
-	curl -s http://localhost:8080/digibank-app/api/customers
-	@echo ""
-	@echo "=== POST /api/accounts (create) ==="
-	curl -s -X POST http://localhost:8080/digibank-app/api/accounts \
-		-H "Content-Type: application/json" \
-		-d '{"accountNumber":"DE1111111111","balance":2500.00,"customerId":1,"accountType":"CHECKING","currency":"EUR"}'
-	@echo ""
-	@echo "=== GET /api/accounts ==="
-	curl -s http://localhost:8080/digibank-app/api/accounts
-	@echo ""
-	@echo "=== POST /api/transactions (create) ==="
-	curl -s -X POST http://localhost:8080/digibank-app/api/transactions \
-		-H "Content-Type: application/json" \
-		-d '{"accountId":1,"amount":100.00,"transactionType":"DEPOSIT","description":"Initial deposit","currency":"EUR"}'
-	@echo ""
-	@echo "==> Smoke test complete. All endpoints operational."
+	@echo "==> Running Digi Bank smoke test suite..."
+	@scripts/smoke-test.sh
 
 # ---------------------------------------------------------------------------
 # One-command verify: deploy, wait, and smoke test
