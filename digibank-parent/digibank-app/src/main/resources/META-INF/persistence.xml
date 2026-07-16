@@ -8,7 +8,14 @@
     <persistence-unit name="digibank-pu" transaction-type="JTA">
         <description>Digi Bank primary persistence unit</description>
         <jta-data-source>java:/jboss/datasources/DigiBankDS</jta-data-source>
-        <exclude-unlisted-classes>false</exclude-unlisted-classes>
+
+        <!-- Explicit entity class listing (required for WildFly Jandex) -->
+        <class>com.digibank.customer.model.Customer</class>
+        <class>com.digibank.account.model.Account</class>
+        <class>com.digibank.transaction.model.Transaction</class>
+        <class>com.digibank.compliance.model.ComplianceCheck</class>
+
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="jakarta.persistence.schema-generation.database.action" value="update"/>
             <property name="jakarta.persistence.sql-load-script-source" value="META-INF/data.sql"/>

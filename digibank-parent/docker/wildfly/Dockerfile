@@ -1,5 +1,5 @@
 # =============================================================================
-# Digi Bank -- WildFly EE 10 Deployment Image
+# Digi Bank -- WildFly Deployment Image
 # Multi-stage build: compiles the Maven project, then creates a WildFly image
 # with the PostgreSQL driver, datasource, and application pre-configured.
 # =============================================================================
@@ -32,26 +32,57 @@ COPY digibank-app/src digibank-app/src
 RUN mvn -pl digibank-app -am clean package -DskipTests -B
 
 # Stage 2: Create runnable WildFly image
-# Uses WildFly 40 (Jakarta EE 11, backward compatible with EE 10 apps)
 FROM quay.io/wildfly/wildfly:40.0.1.Final-jdk17
 
 ARG POSTGRESQL_VERSION=42.7.13
 
-# Download PostgreSQL JDBC driver
+# --------------------------------------------------------------------------
+# Install PostgreSQL JDBC driver as a WildFly module
+# (Manual module.xml approach avoids CLI parsing issues in specific versions)
+# --------------------------------------------------------------------------
 ADD --chown=jboss:jboss \
     https://repo1.maven.org/maven2/org/postgresql/postgresql/${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}.jar \
     /tmp/postgresql.jar
 
-# Copy CLI configuration script
-COPY --chown=jboss:jboss docker/wildfly/configure.cli /tmp/configure.cli
+RUN mkdir -p $JBOSS_HOME/modules/org/postgresql/main && \
+    cp /tmp/postgresql.jar $JBOSS_HOME/modules/org/postgresql/main/postgresql.jar && \
+    cat > $JBOSS_HOME/modules/org/postgresql/main/module.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="urn:jboss:module:1.9" name="org.postgresql">
+    <resources>
+        <resource-root path="postgresql.jar"/>
+    </resources>
+    <dependencies>
+        <module name="javax.api"/>
+        <module name="javax.transaction.api"/>
+    </dependencies>
+</module>
+EOF
 
+# --------------------------------------------------------------------------
+# Configure standalone.xml with PostgreSQL driver and datasource
+# (Direct XML patching is more reliable than CLI for Docker builds)
+# --------------------------------------------------------------------------
+RUN sed -i '/<\/datasources>/i\
+    <datasource jndi-name="java:\/jboss\/datasources\/DigiBankDS" pool-name="DigiBankDS" enabled="true" use-java-context="true">\
+        <connection-url>jdbc:postgresql:\/\/postgres:5432\/digibank_db<\/connection-url>\
+        <driver>postgresql<\/driver>\
+        <security user-name="digibank_user" password="digibank_pwd"\/>\
+        <validation>\
+            <valid-connection-checker class-name="org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker"\/>\
+        <\/validation>\
+    <\/datasource>' $JBOSS_HOME/standalone/configuration/standalone.xml && \
+    sed -i '/<\/drivers>/i\
+    <driver name="postgresql" module="org.postgresql">\
+        <driver-class>org.postgresql.Driver<\/driver-class>\
+    <\/driver>' $JBOSS_HOME/standalone/configuration/standalone.xml && \
+    rm -f /tmp/postgresql.jar
+
+# --------------------------------------------------------------------------
 # Deploy the application WAR (auto-deployment directory)
+# --------------------------------------------------------------------------
 COPY --from=builder /build/digibank-app/target/digibank-app.war \
-    /opt/jboss/wildfly/standalone/deployments/
-
-# Execute CLI to configure PostgreSQL driver and datasource
-RUN $JBOSS_HOME/bin/jboss-cli.sh --file=/tmp/configure.cli && \
-    rm -f /tmp/configure.cli /tmp/postgresql.jar
+    $JBOSS_HOME/standalone/deployments/
 
 EXPOSE 8080 9990
 
