@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -17,6 +15,26 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - digibank-net
+
+  wildfly:
+    build:
+      context: .
+      dockerfile: docker/wildfly/Dockerfile
+    container_name: digibank-wildfly
+    ports:
+      - "8080:8080"
+      - "9990:9990"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - digibank-net
+
+networks:
+  digibank-net:
+    driver: bridge
 
 volumes:
   pgdata:

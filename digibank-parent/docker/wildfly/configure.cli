@@ -1,0 +1,41 @@
+# =============================================================================
+# WildFly CLI Configuration Script
+# Configures PostgreSQL JDBC driver and Digi Bank datasource.
+# =============================================================================
+
+# Start embedded server
+embed-server --server-config=standalone.xml
+
+# ---------------------------------------------------------------------------
+# 1. Add PostgreSQL JDBC driver as a WildFly module
+# ---------------------------------------------------------------------------
+module add --name=org.postgresql \
+    --resources=/tmp/postgresql.jar \
+    --dependencies=javax.api,javax.transaction.api
+
+# ---------------------------------------------------------------------------
+# 2. Register the JDBC driver in the datasources subsystem
+# ---------------------------------------------------------------------------
+/subsystem=datasources/jdbc-driver=postgresql:add(
+    driver-module-name=org.postgresql,
+    driver-name=postgresql,
+    driver-class-name=org.postgresql.Driver
+)
+
+# ---------------------------------------------------------------------------
+# 3. Create the Digi Bank datasource
+# ---------------------------------------------------------------------------
+data-source add \
+    --name=DigiBankDS \
+    --jndi-name=java:/jboss/datasources/DigiBankDS \
+    --driver-name=postgresql \
+    --connection-url=jdbc:postgresql://postgres:5432/digibank_db \
+    --user-name=digibank_user \
+    --password=digibank_pwd \
+    --valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker \
+    --validate-on-match=true \
+    --background-validation=false \
+    --max-pool-size=20 \
+    --min-pool-size=5
+
+stop-embed-server

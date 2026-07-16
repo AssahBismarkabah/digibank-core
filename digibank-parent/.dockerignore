@@ -1,0 +1,25 @@
+# Maven build artifacts
+**/target/
+**/build/
+
+# Version control
+.git/
+.gitignore
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed for deployment)
+*.adoc
+*.md
+docs/
+
+# Keep docker/ in build context for COPY commands in Dockerfile
