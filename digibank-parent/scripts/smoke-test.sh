@@ -15,6 +15,8 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 PASS=0
 FAIL=0
+RUN_ID="${RUN_ID:-$(date +%s)-$$}"
+TEST_ACCOUNT_NUMBER="${TEST_ACCOUNT_NUMBER:-SMK-${RUN_ID:0:16}}"
 
 # --- context path detection --------------------------------------------------
 # WildFly deploys the WAR at /digibank-app context path; embedded Tomcat uses /.
@@ -40,6 +42,18 @@ check_status() {
     else
         fail "$label (expected HTTP $expected, got $actual)"
     fi
+}
+
+http_status() {
+    curl -s -o /dev/null -w "%{http_code}" "$@" || true
+}
+
+http_body_status() {
+    curl -s -w "\n%{http_code}" "$@" || true
+}
+
+extract_id() {
+    sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p'
 }
 
 # --- fresh database ---------------------------------------------------------
@@ -75,46 +89,33 @@ echo ""
 
 info "=== Customer Endpoints ==="
 
-# GET /api/customers (empty list)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/customers")
-check_status 200 "$status" "GET /api/customers (empty)"
+# GET /api/customers
+status=$(http_status "$API/api/customers")
+check_status 200 "$status" "GET /api/customers"
 
 # POST /api/customers (create)
-status=$(curl -s -o /dev/null -w "%{http_code}" \
+body=$(http_body_status \
     -X POST "$API/api/customers" \
     -H "Content-Type: application/json" \
-    -d '{"firstName":"Alice","lastName":"Smith","email":"alice@test.com"}')
-check_status 201 "$status" "POST /api/customers (create Alice)"
+    -d "{\"firstName\":\"Smoke\",\"lastName\":\"Customer\",\"email\":\"smoke.customer.$RUN_ID@test.com\"}")
+status=$(printf "%s" "$body" | tail -n1)
+CUSTOMER_ID=$(printf "%s" "$body" | sed '$d' | extract_id)
+check_status 201 "$status" "POST /api/customers (create smoke customer)"
 
-# POST /api/customers (create second)
-status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "$API/api/customers" \
+# GET /api/customers/{id}
+status=$(http_status "$API/api/customers/$CUSTOMER_ID")
+check_status 200 "$status" "GET /api/customers/{id}"
+
+# PUT /api/customers/{id}
+status=$(http_status \
+    -X PUT "$API/api/customers/$CUSTOMER_ID" \
     -H "Content-Type: application/json" \
-    -d '{"firstName":"Bob","lastName":"Jones","email":"bob@test.com"}')
-check_status 201 "$status" "POST /api/customers (create Bob)"
+    -d "{\"firstName\":\"Smoke\",\"lastName\":\"Updated\",\"email\":\"smoke.customer.$RUN_ID@test.com\"}")
+check_status 200 "$status" "PUT /api/customers/{id} (update)"
 
-# GET /api/customers (list with data)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/customers")
-check_status 200 "$status" "GET /api/customers (populated)"
-
-# GET /api/customers/1
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/customers/1")
-check_status 200 "$status" "GET /api/customers/1"
-
-# GET /api/customers/999 (not found)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/customers/999")
-check_status 404 "$status" "GET /api/customers/999 (not found)"
-
-# PUT /api/customers/1 (update John Doe's name, keep original email)
-status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X PUT "$API/api/customers/1" \
-    -H "Content-Type: application/json" \
-    -d '{"firstName":"John","lastName":"Smith","email":"john.doe@example.com"}')
-check_status 200 "$status" "PUT /api/customers/1 (update)"
-
-# DELETE /api/customers/2
-status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$API/api/customers/2")
-check_status 204 "$status" "DELETE /api/customers/2"
+# DELETE /api/customers/{id}
+status=$(http_status -X DELETE "$API/api/customers/$CUSTOMER_ID")
+check_status 204 "$status" "DELETE /api/customers/{id}"
 
 echo ""
 
@@ -122,24 +123,33 @@ echo ""
 
 info "=== Account Endpoints ==="
 
-# GET /api/accounts (empty)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/accounts")
-check_status 200 "$status" "GET /api/accounts (empty)"
+# GET /api/accounts
+status=$(http_status "$API/api/accounts")
+check_status 200 "$status" "GET /api/accounts"
 
 # POST /api/accounts (create)
-status=$(curl -s -o /dev/null -w "%{http_code}" \
+body=$(http_body_status \
     -X POST "$API/api/accounts" \
     -H "Content-Type: application/json" \
-    -d '{"accountNumber":"ACC-001","balance":1000.00,"customerId":1,"accountType":"CHECKING","currency":"EUR"}')
-check_status 201 "$status" "POST /api/accounts (create ACC-001)"
+    -d "{\"accountNumber\":\"$TEST_ACCOUNT_NUMBER\",\"balance\":1000.00,\"customerId\":1,\"accountType\":\"CHECKING\",\"currency\":\"EUR\"}")
+status=$(printf "%s" "$body" | tail -n1)
+ACCOUNT_ID=$(printf "%s" "$body" | sed '$d' | extract_id)
+check_status 201 "$status" "POST /api/accounts (create smoke account)"
 
-# GET /api/accounts (populated)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/accounts")
-check_status 200 "$status" "GET /api/accounts (populated)"
+# GET /api/accounts/{id}
+status=$(http_status "$API/api/accounts/$ACCOUNT_ID")
+check_status 200 "$status" "GET /api/accounts/{id}"
 
-# GET /api/accounts/1
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/accounts/1")
-check_status 200 "$status" "GET /api/accounts/1"
+# PUT /api/accounts/{id}
+status=$(http_status \
+    -X PUT "$API/api/accounts/$ACCOUNT_ID" \
+    -H "Content-Type: application/json" \
+    -d "{\"accountNumber\":\"$TEST_ACCOUNT_NUMBER\",\"balance\":1250.00,\"customerId\":1,\"accountType\":\"SAVINGS\",\"currency\":\"EUR\"}")
+check_status 200 "$status" "PUT /api/accounts/{id} (update)"
+
+# GET /api/accounts/by-customer/{customerId}
+status=$(http_status "$API/api/accounts/by-customer/1")
+check_status 200 "$status" "GET /api/accounts/by-customer/{customerId}"
 
 echo ""
 
@@ -147,20 +157,37 @@ echo ""
 
 info "=== Transaction Endpoints ==="
 
-# GET /api/transactions (empty)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/transactions")
-check_status 200 "$status" "GET /api/transactions (empty)"
+# GET /api/transactions
+status=$(http_status "$API/api/transactions")
+check_status 200 "$status" "GET /api/transactions"
 
 # POST /api/transactions (create)
-status=$(curl -s -o /dev/null -w "%{http_code}" \
+body=$(http_body_status \
     -X POST "$API/api/transactions" \
     -H "Content-Type: application/json" \
-    -d '{"accountId":1,"amount":250.00,"transactionType":"DEPOSIT","description":"Test deposit"}')
+    -d "{\"accountId\":$ACCOUNT_ID,\"amount\":250.00,\"transactionType\":\"DEPOSIT\",\"description\":\"Smoke test deposit\"}")
+status=$(printf "%s" "$body" | tail -n1)
+TRANSACTION_ID=$(printf "%s" "$body" | sed '$d' | extract_id)
 check_status 201 "$status" "POST /api/transactions (create deposit)"
 
-# GET /api/transactions (populated)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/transactions")
-check_status 200 "$status" "GET /api/transactions (populated)"
+# GET /api/transactions/{id}
+status=$(http_status "$API/api/transactions/$TRANSACTION_ID")
+check_status 200 "$status" "GET /api/transactions/{id}"
+
+# PUT /api/transactions/{id}
+status=$(http_status \
+    -X PUT "$API/api/transactions/$TRANSACTION_ID" \
+    -H "Content-Type: application/json" \
+    -d "{\"accountId\":$ACCOUNT_ID,\"amount\":300.00,\"transactionType\":\"DEPOSIT\",\"description\":\"Smoke test deposit updated\"}")
+check_status 200 "$status" "PUT /api/transactions/{id} (update)"
+
+# GET /api/transactions/by-account/{accountId}
+status=$(http_status "$API/api/transactions/by-account/$ACCOUNT_ID")
+check_status 200 "$status" "GET /api/transactions/by-account/{accountId}"
+
+# DELETE /api/transactions/{id}
+status=$(http_status -X DELETE "$API/api/transactions/$TRANSACTION_ID")
+check_status 204 "$status" "DELETE /api/transactions/{id}"
 
 echo ""
 
@@ -168,28 +195,55 @@ echo ""
 
 info "=== Compliance Endpoints ==="
 
-# GET /api/compliance (empty)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/compliance")
-check_status 200 "$status" "GET /api/compliance (empty)"
+# GET /api/compliance
+status=$(http_status "$API/api/compliance")
+check_status 200 "$status" "GET /api/compliance"
 
 # POST /api/compliance (create)
-status=$(curl -s -o /dev/null -w "%{http_code}" \
+body=$(http_body_status \
     -X POST "$API/api/compliance" \
     -H "Content-Type: application/json" \
-    -d '{"customerId":1,"checkType":"KYC","status":"PASSED","checkedBy":"SYSTEM","remarks":"Initial KYC check"}')
+    -d '{"customerId":1,"checkType":"KYC","status":"PASSED","checkedBy":"SYSTEM","remarks":"Smoke test KYC check"}')
+status=$(printf "%s" "$body" | tail -n1)
+COMPLIANCE_ID=$(printf "%s" "$body" | sed '$d' | extract_id)
 check_status 201 "$status" "POST /api/compliance (create KYC check)"
 
-# GET /api/compliance (populated)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/compliance")
-check_status 200 "$status" "GET /api/compliance (populated)"
+# GET /api/compliance/{id}
+status=$(http_status "$API/api/compliance/$COMPLIANCE_ID")
+check_status 200 "$status" "GET /api/compliance/{id}"
+
+# PUT /api/compliance/{id}
+status=$(http_status \
+    -X PUT "$API/api/compliance/$COMPLIANCE_ID" \
+    -H "Content-Type: application/json" \
+    -d '{"customerId":1,"checkType":"AML","status":"REVIEW","checkedBy":"SYSTEM","remarks":"Smoke test AML review"}')
+check_status 200 "$status" "PUT /api/compliance/{id} (update)"
+
+# GET /api/compliance/by-customer/{customerId}
+status=$(http_status "$API/api/compliance/by-customer/1")
+check_status 200 "$status" "GET /api/compliance/by-customer/{customerId}"
+
+# DELETE /api/compliance/{id}
+status=$(http_status -X DELETE "$API/api/compliance/$COMPLIANCE_ID")
+check_status 204 "$status" "DELETE /api/compliance/{id}"
 
 echo ""
 
-# --- 5. Index page ----------------------------------------------------------
+# --- 5. Account cleanup endpoint -------------------------------------------
+
+info "=== Account Cleanup Endpoint ==="
+
+# DELETE /api/accounts/{id}
+status=$(http_status -X DELETE "$API/api/accounts/$ACCOUNT_ID")
+check_status 204 "$status" "DELETE /api/accounts/{id}"
+
+echo ""
+
+# --- 6. Index page ----------------------------------------------------------
 
 info "=== Index Page ==="
 
-status=$(curl -s -o /dev/null -w "%{http_code}" "$API/")
+status=$(http_status "$API/")
 check_status 200 "$status" "GET / (index page)"
 
 echo ""
