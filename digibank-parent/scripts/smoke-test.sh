@@ -16,6 +16,17 @@ BASE_URL="${BASE_URL:-http://localhost:8080}"
 PASS=0
 FAIL=0
 
+# --- context path detection --------------------------------------------------
+# WildFly deploys the WAR at /digibank-app context path; embedded Tomcat uses /.
+# Auto-detect by probing both.
+CONTEXT=""
+if curl -sf "$BASE_URL/api/customers" >/dev/null 2>&1; then
+    CONTEXT=""
+elif curl -sf "$BASE_URL/digibank-app/api/customers" >/dev/null 2>&1; then
+    CONTEXT="/digibank-app"
+fi
+API="$BASE_URL$CONTEXT"
+
 # --- helpers ----------------------------------------------------------------
 
 info()  { printf "  [INFO]  %s\n" "$*"; }
@@ -34,12 +45,20 @@ check_status() {
 # --- fresh database ---------------------------------------------------------
 # Restart the app container so Hibernate ddl-auto:create gives us clean tables.
 # This makes the smoke test idempotent -- safe to run multiple times.
-if command -v docker &>/dev/null && docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^digibank-app$'; then
-    info "Restarting digibank-app for a fresh database..."
-    docker restart digibank-app >/dev/null
-    # Wait for the app to become available (check API, not just index page)
+APP_CONTAINER=""
+if command -v docker &>/dev/null; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^digibank-app$'; then
+        APP_CONTAINER="digibank-app"
+    elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^digibank-wildfly$'; then
+        APP_CONTAINER="digibank-wildfly"
+    fi
+fi
+if [ -n "$APP_CONTAINER" ]; then
+    info "Restarting $APP_CONTAINER for a fresh database..."
+    docker restart "$APP_CONTAINER" >/dev/null
+    # Wait for the app to become available
     for i in $(seq 1 30); do
-        if curl -sf "$BASE_URL/api/customers" >/dev/null 2>&1; then
+        if curl -sf "$API/api/customers" >/dev/null 2>&1; then
             sleep 2  # extra settle time for Hibernate to finish schema creation
             break
         fi
@@ -49,7 +68,7 @@ fi
 
 # --- health check -----------------------------------------------------------
 
-info "Smoke testing Digi Bank at $BASE_URL"
+info "Smoke testing Digi Bank at $API"
 echo ""
 
 # --- 1. Customer endpoints --------------------------------------------------
@@ -57,44 +76,44 @@ echo ""
 info "=== Customer Endpoints ==="
 
 # GET /api/customers (empty list)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/customers")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/customers")
 check_status 200 "$status" "GET /api/customers (empty)"
 
 # POST /api/customers (create)
 status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "$BASE_URL/api/customers" \
+    -X POST "$API/api/customers" \
     -H "Content-Type: application/json" \
     -d '{"firstName":"Alice","lastName":"Smith","email":"alice@test.com"}')
 check_status 201 "$status" "POST /api/customers (create Alice)"
 
 # POST /api/customers (create second)
 status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "$BASE_URL/api/customers" \
+    -X POST "$API/api/customers" \
     -H "Content-Type: application/json" \
     -d '{"firstName":"Bob","lastName":"Jones","email":"bob@test.com"}')
 check_status 201 "$status" "POST /api/customers (create Bob)"
 
 # GET /api/customers (list with data)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/customers")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/customers")
 check_status 200 "$status" "GET /api/customers (populated)"
 
 # GET /api/customers/1
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/customers/1")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/customers/1")
 check_status 200 "$status" "GET /api/customers/1"
 
 # GET /api/customers/999 (not found)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/customers/999")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/customers/999")
 check_status 404 "$status" "GET /api/customers/999 (not found)"
 
 # PUT /api/customers/1 (update John Doe's name, keep original email)
 status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X PUT "$BASE_URL/api/customers/1" \
+    -X PUT "$API/api/customers/1" \
     -H "Content-Type: application/json" \
     -d '{"firstName":"John","lastName":"Smith","email":"john.doe@example.com"}')
 check_status 200 "$status" "PUT /api/customers/1 (update)"
 
 # DELETE /api/customers/2
-status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/api/customers/2")
+status=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$API/api/customers/2")
 check_status 204 "$status" "DELETE /api/customers/2"
 
 echo ""
@@ -104,22 +123,22 @@ echo ""
 info "=== Account Endpoints ==="
 
 # GET /api/accounts (empty)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/accounts")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/accounts")
 check_status 200 "$status" "GET /api/accounts (empty)"
 
 # POST /api/accounts (create)
 status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "$BASE_URL/api/accounts" \
+    -X POST "$API/api/accounts" \
     -H "Content-Type: application/json" \
     -d '{"accountNumber":"ACC-001","balance":1000.00,"customerId":1,"accountType":"CHECKING","currency":"EUR"}')
 check_status 201 "$status" "POST /api/accounts (create ACC-001)"
 
 # GET /api/accounts (populated)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/accounts")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/accounts")
 check_status 200 "$status" "GET /api/accounts (populated)"
 
 # GET /api/accounts/1
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/accounts/1")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/accounts/1")
 check_status 200 "$status" "GET /api/accounts/1"
 
 echo ""
@@ -129,18 +148,18 @@ echo ""
 info "=== Transaction Endpoints ==="
 
 # GET /api/transactions (empty)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/transactions")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/transactions")
 check_status 200 "$status" "GET /api/transactions (empty)"
 
 # POST /api/transactions (create)
 status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "$BASE_URL/api/transactions" \
+    -X POST "$API/api/transactions" \
     -H "Content-Type: application/json" \
     -d '{"accountId":1,"amount":250.00,"transactionType":"DEPOSIT","description":"Test deposit"}')
 check_status 201 "$status" "POST /api/transactions (create deposit)"
 
 # GET /api/transactions (populated)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/transactions")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/transactions")
 check_status 200 "$status" "GET /api/transactions (populated)"
 
 echo ""
@@ -150,18 +169,18 @@ echo ""
 info "=== Compliance Endpoints ==="
 
 # GET /api/compliance (empty)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/compliance")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/compliance")
 check_status 200 "$status" "GET /api/compliance (empty)"
 
 # POST /api/compliance (create)
 status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "$BASE_URL/api/compliance" \
+    -X POST "$API/api/compliance" \
     -H "Content-Type: application/json" \
     -d '{"customerId":1,"checkType":"KYC","status":"PASSED","checkedBy":"SYSTEM","remarks":"Initial KYC check"}')
 check_status 201 "$status" "POST /api/compliance (create KYC check)"
 
 # GET /api/compliance (populated)
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/compliance")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/api/compliance")
 check_status 200 "$status" "GET /api/compliance (populated)"
 
 echo ""
@@ -170,7 +189,7 @@ echo ""
 
 info "=== Index Page ==="
 
-status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/")
+status=$(curl -s -o /dev/null -w "%{http_code}" "$API/")
 check_status 200 "$status" "GET / (index page)"
 
 echo ""

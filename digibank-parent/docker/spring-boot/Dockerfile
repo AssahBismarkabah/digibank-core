@@ -32,7 +32,7 @@ COPY digibank-app/src digibank-app/src
 RUN mvn -pl digibank-app -am clean package -DskipTests -B
 
 # Stage 2: Create WildFly runtime image
-FROM quay.io/wildfly/wildfly:40.0.1.Final-jdk17
+FROM quay.io/wildfly/wildfly:40.0.1.Final-jdk21
 
 # Copy the built WAR to WildFly's auto-deployment directory
 COPY --from=builder /build/digibank-app/target/digibank-app.war \
