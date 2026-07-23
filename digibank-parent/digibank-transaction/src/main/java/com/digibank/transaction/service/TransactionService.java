@@ -72,6 +72,18 @@ public class TransactionService {
                 .toList();
     }
 
+    public TransactionResponse update(Long id, TransactionRequest request) {
+        var transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Transaction not found with id: " + id));
+
+        transaction.setAmount(request.getAmount());
+        transaction.setTransactionType(request.getTransactionType());
+        transaction.setDescription(request.getDescription());
+
+        transaction = transactionRepository.save(transaction);
+        return toResponse(transaction);
+    }
+
     public void delete(Long id) {
         if (!transactionRepository.existsById(id)) {
             throw new EntityNotFoundException("Transaction not found with id: " + id);
