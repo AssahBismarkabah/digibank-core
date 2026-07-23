@@ -31,6 +31,22 @@ check_status() {
     fi
 }
 
+# --- fresh database ---------------------------------------------------------
+# Restart the app container so Hibernate ddl-auto:create gives us clean tables.
+# This makes the smoke test idempotent -- safe to run multiple times.
+if command -v docker &>/dev/null && docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^digibank-app$'; then
+    info "Restarting digibank-app for a fresh database..."
+    docker restart digibank-app >/dev/null
+    # Wait for the app to become available (check API, not just index page)
+    for i in $(seq 1 30); do
+        if curl -sf "$BASE_URL/api/customers" >/dev/null 2>&1; then
+            sleep 2  # extra settle time for Hibernate to finish schema creation
+            break
+        fi
+        sleep 1
+    done
+fi
+
 # --- health check -----------------------------------------------------------
 
 info "Smoke testing Digi Bank at $BASE_URL"
@@ -70,11 +86,11 @@ check_status 200 "$status" "GET /api/customers/1"
 status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/customers/999")
 check_status 404 "$status" "GET /api/customers/999 (not found)"
 
-# PUT /api/customers/1
+# PUT /api/customers/1 (update John Doe's name, keep original email)
 status=$(curl -s -o /dev/null -w "%{http_code}" \
     -X PUT "$BASE_URL/api/customers/1" \
     -H "Content-Type: application/json" \
-    -d '{"firstName":"Alice","lastName":"Johnson","email":"alice@test.com"}')
+    -d '{"firstName":"John","lastName":"Smith","email":"john.doe@example.com"}')
 check_status 200 "$status" "PUT /api/customers/1 (update)"
 
 # DELETE /api/customers/2
@@ -95,7 +111,7 @@ check_status 200 "$status" "GET /api/accounts (empty)"
 status=$(curl -s -o /dev/null -w "%{http_code}" \
     -X POST "$BASE_URL/api/accounts" \
     -H "Content-Type: application/json" \
-    -d '{"accountNumber":"ACC-001","balance":1000.00,"customerId":1}')
+    -d '{"accountNumber":"ACC-001","balance":1000.00,"customerId":1,"accountType":"CHECKING","currency":"EUR"}')
 check_status 201 "$status" "POST /api/accounts (create ACC-001)"
 
 # GET /api/accounts (populated)
@@ -120,7 +136,7 @@ check_status 200 "$status" "GET /api/transactions (empty)"
 status=$(curl -s -o /dev/null -w "%{http_code}" \
     -X POST "$BASE_URL/api/transactions" \
     -H "Content-Type: application/json" \
-    -d '{"accountId":"1","amount":250.00,"type":"DEPOSIT"}')
+    -d '{"accountId":1,"amount":250.00,"transactionType":"DEPOSIT","description":"Test deposit"}')
 check_status 201 "$status" "POST /api/transactions (create deposit)"
 
 # GET /api/transactions (populated)
@@ -141,7 +157,7 @@ check_status 200 "$status" "GET /api/compliance (empty)"
 status=$(curl -s -o /dev/null -w "%{http_code}" \
     -X POST "$BASE_URL/api/compliance" \
     -H "Content-Type: application/json" \
-    -d '{"customerId":1,"checkType":"KYC","passed":true}')
+    -d '{"customerId":1,"checkType":"KYC","status":"PASSED","checkedBy":"SYSTEM","remarks":"Initial KYC check"}')
 check_status 201 "$status" "POST /api/compliance (create KYC check)"
 
 # GET /api/compliance (populated)
