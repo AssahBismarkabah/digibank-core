@@ -26,6 +26,45 @@ tests, then shuts everything down. Requires Docker.
 
 For step-by-step instructions, see the link:docs/00_getting_started.adoc[Getting Started guide].
 
+== Make Commands
+
+All commands run from the `digibank-parent/` directory:
+
+[cols="25,75"]
+|===
+| Command | Description
+
+| `make verify`
+| Full pipeline: build, start, smoke-test, stop
+
+| `make up`
+| Start PostgreSQL + Spring Boot (embedded Tomcat, dev mode)
+
+| `make up-wildfly`
+| Start PostgreSQL + WildFly (production mode)
+
+| `make down`
+| Stop all containers
+
+| `make test`
+| Run all unit and integration tests
+
+| `make smoke-test`
+| Run smoke tests against a running instance
+
+| `make logs`
+| Tail logs from all containers
+
+| `make build`
+| Compile, test, and package the project
+
+| `make clean`
+| Remove all build artifacts
+
+| `make help`
+| Show all available targets
+|===
+
 == Documentation
 
 * link:docs/00_getting_started.adoc[Getting Started] -- prerequisites, deployment, troubleshooting
