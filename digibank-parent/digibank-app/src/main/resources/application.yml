@@ -16,13 +16,12 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     show-sql: false
     properties:
       hibernate:
         format_sql: true
-        schema_update:
-          unique_constraint_strategy: RECREATE_QUIETLY
+    defer-datasource-initialization: true
 
   sql:
     init:
