@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.digibank</groupId>
+        <artifactId>digibank-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>digibank-app</artifactId>
+    <packaging>war</packaging>
+    <name>Digi Bank Application</name>
+    <description>Spring Boot main application (WAR for WildFly deployment)</description>
+
+    <dependencies>
+        <!-- Internal modules -->
+        <dependency>
+            <groupId>com.digibank</groupId>
+            <artifactId>digibank-shared</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.digibank</groupId>
+            <artifactId>digibank-customer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.digibank</groupId>
+            <artifactId>digibank-account</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.digibank</groupId>
+            <artifactId>digibank-transaction</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.digibank</groupId>
+            <artifactId>digibank-compliance</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.digibank</groupId>
+            <artifactId>digibank-index</artifactId>
+        </dependency>
+
+        <!-- Spring Boot starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!-- Provided for WAR deployment on WildFly -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- PostgreSQL -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>digibank-app</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: digibank-app
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/digibank_db
+    username: digibank_user
+    password: digibank_pwd
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        schema_update:
+          unique_constraint_strategy: RECREATE_QUIETLY
+
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:data.sql
+
+logging:
+  level:
+    com.digibank: DEBUG
+    org.springframework: INFO

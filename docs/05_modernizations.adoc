@@ -1,0 +1,209 @@
+= Modernizations Applied
+
+This implementation modernizes the original Jakarta EE 10 implementation from
+the `legacy/jakarta-ee` branch. Each change is justified below.
+
+== 1. BigDecimal for Monetary Values
+
+*Jakarta EE implementation:* Used `double` for `Account.balance` and
+`Transaction.amount`.
+
+*Spring Boot implementation:* All monetary fields use `java.math.BigDecimal`
+with `@Digits(integer = 10, fraction = 2)` and `@PositiveOrZero` validation.
+
+*Why:* Floating-point types (`double`, `float`) cannot represent decimal
+values exactly, leading to rounding errors in financial calculations.
+`BigDecimal` provides exact precision with explicit `RoundingMode`.
+
+== 2. DTO Pattern (Request/Response Separation)
+
+*Jakarta EE implementation:* Exposed JPA entities directly as REST response
+bodies.
+
+*Spring Boot implementation:* Every module has dedicated Request and Response
+DTOs. Requests carry validation annotations; Responses never expose internal
+entity state.
+
+*Why:* JPA entities contain persistence concerns (lazy loading, ORM
+proxies, bidirectional relationships) that break serialization. DTOs
+decouple the API contract from the persistence model.
+
+== 3. Bean Validation
+
+*Jakarta EE implementation:* No validation annotations on entities or
+endpoints.
+
+*Spring Boot implementation:* All entities and DTOs carry `@NotNull`,
+`@NotBlank`, `@Email`, `@Digits`, `@PositiveOrZero`, and `@Pattern`
+annotations. REST controllers use `@Valid @NotNull` on request parameters.
+
+*Why:* Validation at the boundary catches invalid data before it reaches
+business logic or the database, providing consistent error responses.
+
+== 4. @RestControllerAdvice for Error Handling
+
+*Jakarta EE implementation:* Used `ExceptionMapper<ConstraintViolationException>`
+and `ExceptionMapper<EntityNotFoundException>` (JAX-RS providers).
+
+*Spring Boot implementation:* A single `@RestControllerAdvice` class handles
+all exceptions with `@ExceptionHandler` methods, returning consistent JSON:
+
+[source,json]
+----
+{"error": "Validation failed", "violations": {"name": "must not be blank"}}
+{"error": "Customer not found with id: 42"}
+----
+
+*Why:* `@RestControllerAdvice` is the idiomatic Spring Boot approach. It
+centralizes error handling in one place and works across all controllers
+without provider registration.
+
+== 5. Spring Boot Auto-Configuration (No XML)
+
+*Jakarta EE implementation:* Required `beans.xml`, `persistence.xml`,
+`web.xml`, and manual datasource configuration in WildFly.
+
+*Spring Boot implementation:* Zero XML configuration. `application.yml`
+handles datasource, JPA, and server settings. Spring Boot auto-configures
+the servlet container, JPA provider, and validation.
+
+*Why:* Spring Boot's auto-configuration eliminates boilerplate XML and
+reduces configuration errors. The entire application is configured in a
+single YAML file.
+
+== 6. Spring Data JPA Repositories
+
+*Jakarta EE implementation:* Custom repository classes with `EntityManager`
+injection and manual JPQL queries.
+
+*Spring Boot implementation:* `JpaRepository<T, Long>` interfaces with
+derived query methods (`findByCustomerId`, `findByAccountId`). No
+implementation code needed.
+
+*Why:* Spring Data JPA generates repository implementations at runtime.
+Derived query methods eliminate boilerplate CRUD code and reduce the
+surface area for bugs.
+
+== 7. Dual Deployment: Embedded Tomcat + WildFly
+
+*Jakarta EE implementation:* Required WildFly 40 (Jakarta EE 11 runtime)
+with manual datasource configuration.
+
+*Spring Boot implementation:* Supports two deployment modes:
+
+- **Embedded Tomcat (dev):** `mvn spring-boot:run` or `java -jar digibank-app.war`
+- **WildFly (production):** Deploy `digibank-app.war` to WildFly via Docker
+
+The `pom.xml` uses `<packaging>war</packaging>` with `spring-boot-starter-tomcat`
+scoped as `provided` for WildFly deployments. `DigiBankApplication` extends
+`SpringBootServletInitializer` for WAR-based deployment.
+
+*Why:* Dual deployment enables fast local development with embedded Tomcat
+while supporting production deployment to WildFly without changes.
+
+== 8. Spring Boot Testing
+
+*Jakarta EE implementation:* Used Weld JUnit 5 for CDI container testing
+and Mockito for unit tests.
+
+*Spring Boot implementation:* Uses:
+
+- `@SpringBootTest` for integration tests
+- `@WebMvcTest` for controller slice tests (with `@Import` for controller advice)
+- `Mockito` with `@ExtendWith(MockitoExtension.class)` for unit tests
+- `MockMvcTester` (AssertJ-style) for Cucumber BDD step definitions
+- Cucumber BDD with `@CucumberContextConfiguration` and `@AutoConfigureMockMvc`
+
+*Why:* Spring Boot's testing slices load only the relevant parts of the
+application context, making tests faster and more focused. `MockMvcTester`
+replaces the removed `TestRestTemplate` in Spring Boot 4.x.
+
+== 9. Docker Compose for PostgreSQL + WildFly
+
+*Jakarta EE implementation:* Docker Compose with PostgreSQL 16.
+
+*Spring Boot implementation:* Docker Compose with two profiles:
+
+- **dev:** Runs the Spring Boot app with embedded Tomcat + PostgreSQL
+- **wildfly:** Runs WildFly with the deployed WAR + PostgreSQL
+
+[source,yaml]
+----
+services:
+  app:
+    profiles: ["dev"]
+    build:
+      dockerfile: docker/app/Dockerfile
+  wildfly:
+    profiles: ["wildfly"]
+    build:
+      dockerfile: docker/spring-boot/Dockerfile
+  db:
+    image: postgres:16-alpine
+----
+
+*Why:* One command (`docker compose --profile dev up`) provisions both the
+database and the application. The WildFly profile enables production-like
+deployment testing.
+
+== 10. Java 21 Compatibility
+
+*Jakarta EE implementation:* Targeted Java 17.
+
+*Spring Boot implementation:* Targets Java 21, uses `var` for local
+variables, `text blocks` for multi-line strings, `sealed classes` where
+appropriate, and `Objects.equals()` / `Objects.hash()` for entity equality.
+
+*Why:* Java 21 is the current LTS. Spring Boot 4.x requires Java 21+.
+Records reduce boilerplate for simple data carriers.
+
+== 11. Modular Monolith Structure
+
+*Jakarta EE implementation:* Single WAR with all packages under one module.
+
+*Spring Boot implementation:* Multi-module Maven project with clear
+separation of concerns:
+
+- `digibank-shared` -- Base entity, DTOs, global exception handler
+- `digibank-customer` -- Customer management (entities, repo, service, controller)
+- `digibank-account` -- Account management
+- `digibank-transaction` -- Transaction management
+- `digibank-compliance` -- Compliance checks
+- `digibank-index` -- Thymeleaf landing page
+- `digibank-app` -- Application entry point, WAR packaging
+
+*Why:* Modular monolith preserves the deployment simplicity of a monolith
+while enforcing module boundaries that would make a future split into
+microservices straightforward.
+
+== 12. Thymeleaf Landing Page
+
+*Jakarta EE implementation:* No landing page; direct REST API access.
+
+*Spring Boot implementation:* A Thymeleaf-based index page at `/` provides
+a simple dashboard with links to all API endpoints.
+
+*Why:* Provides a human-friendly entry point for developers and operators
+to verify the application is running.
+
+== 13. Cucumber BDD Tests
+
+*Jakarta EE implementation:* No BDD tests.
+
+*Spring Boot implementation:* Cucumber BDD tests with Gherkin feature files
+covering customer CRUD scenarios. Uses `MockMvcTester` for HTTP request
+simulation within the Spring test context.
+
+*Why:* BDD tests bridge the gap between business requirements and technical
+implementation, serving as both documentation and automated verification.
+
+== 14. ServletUriComponentsBuilder for Location Headers
+
+*Jakarta EE implementation:* Used string concatenation for `Location` headers.
+
+*Spring Boot implementation:* Uses `ServletUriComponentsBuilder.fromCurrentRequest()`
+to build `Location` URIs safely, preventing XSS scanner false positives.
+
+*Why:* `ServletUriComponentsBuilder` is the Spring-recommended approach for
+building URIs relative to the current request. It properly encodes path
+segments and eliminates security scanner warnings.

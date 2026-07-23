@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: digibank-db
+    environment:
+      POSTGRES_DB: digibank_db
+      POSTGRES_USER: digibank_user
+      POSTGRES_PASSWORD: digibank_pwd
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U digibank_user -d digibank_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - digibank-net
+
+  # Development profile: Spring Boot with embedded Tomcat
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: digibank-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/digibank_db
+      SPRING_DATASOURCE_USERNAME: digibank_user
+      SPRING_DATASOURCE_PASSWORD: digibank_pwd
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - digibank-net
+    profiles:
+      - dev
+
+  # Production profile: Spring Boot WAR deployed on WildFly
+  wildfly:
+    build:
+      context: .
+      dockerfile: docker/spring-boot/Dockerfile
+    container_name: digibank-wildfly
+    ports:
+      - "8080:8080"
+      - "9990:9990"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/digibank_db
+      SPRING_DATASOURCE_USERNAME: digibank_user
+      SPRING_DATASOURCE_PASSWORD: digibank_pwd
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - digibank-net
+    profiles:
+      - wildfly
+
+networks:
+  digibank-net:
+    driver: bridge
+
+volumes:
+  pgdata:

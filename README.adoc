@@ -1,0 +1,58 @@
+= Digi Bank
+
+Digi Bank is a reference implementation of a core banking platform built as a
+modular monolith using Spring Boot 3.x. It demonstrates modern Spring Boot
+patterns: DTOs, Bean Validation, `@RestControllerAdvice` for error handling,
+BigDecimal for monetary values, Spring Data JPA repositories, and Docker
+Compose deployment.
+
+The project is organized into 7 Maven modules with strong module boundaries,
+designed to be split into microservices later if needed.
+
+This is an educational project for the Cloud Computing Professional License
+course (June 2026). It is the Spring Boot migration of the original Jakarta EE
+10 implementation (see the `legacy/jakarta-ee` branch).
+
+== To start using Digi Bank
+
+See the link:docs/00_getting_started.adoc[Getting Started guide] for
+prerequisites, installation, and deployment instructions.
+
+##### You have Docker installed (recommended)
+
+[source,shell]
+----
+cd digibank-parent
+make verify
+----
+
+##### You have Java 17+ and Maven 3.9+ installed
+
+[source,shell]
+----
+cd digibank-parent
+mvn clean package -DskipTests
+docker compose up --build -d
+./scripts/smoke-test.sh
+----
+
+For the full story, head over to the link:docs/00_getting_started.adoc[Getting Started guide].
+
+== Documentation
+
+* link:docs/00_getting_started.adoc[Getting Started] -- prerequisites, deployment, troubleshooting
+* link:docs/05_modernizations.adoc[Modernizations] -- improvements over the Jakarta EE implementation
+
+== Tech Stack
+
+* Java 17+
+* Spring Boot 3.x (Web, Data JPA, Validation)
+* Spring Data JPA / Hibernate 6
+* PostgreSQL 16
+* Apache Maven 3.9+
+
+== Project Status
+
+This is an educational project for the Cloud Computing Professional License
+course. It is the Spring Boot migration of the Jakarta EE implementation on
+the `legacy/jakarta-ee` branch.

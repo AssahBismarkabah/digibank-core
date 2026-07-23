@@ -1,0 +1,202 @@
+= Getting Started
+
+== Prerequisites
+
+=== Docker
+
+Docker is required to run PostgreSQL and the application containers.
+
+* link:https://docs.docker.com/engine/install/[Install Docker]
+* Verify: `docker --version` and `docker compose version`
+
+=== Java 21+ (Optional -- only if building locally)
+
+If you want to build the project outside of Docker:
+
+* link:https://adoptium.net/temurin/releases/?version=21[Download Eclipse Temurin 21]
+* Verify: `java -version`
+
+=== Apache Maven 3.9+ (Optional -- only if building locally)
+
+* link:https://maven.apache.org/download.cgi[Download Maven]
+* Verify: `mvn -version`
+
+If you prefer the multi-stage Docker build, Java and Maven are not needed
+locally -- everything runs inside the container.
+
+== Quick Start (Embedded Tomcat -- Dev Mode)
+
+Build and run with embedded Tomcat for local development:
+
+[source,shell]
+----
+# 1. Build the project
+make build
+
+# 2. Start PostgreSQL and the app
+make up
+
+# 3. Verify
+make smoke-test
+----
+
+Or manually:
+
+[source,shell]
+----
+cd digibank-parent
+
+# 1. Build the project
+mvn clean install
+
+# 2. Start PostgreSQL and the app
+docker compose --profile dev up --build
+
+# 3. Verify
+curl http://localhost:8080/api/customers
+----
+
+The application is accessible at http://localhost:8080/.
+
+== Quick Start (WildFly -- Production Mode)
+
+Build and deploy to WildFly for production-like deployment:
+
+[source,shell]
+----
+# 1. Build the project
+make build
+
+# 2. Start PostgreSQL and WildFly
+make up-wildfly
+
+# 3. Verify
+make smoke-test
+----
+
+Or manually:
+
+[source,shell]
+----
+cd digibank-parent
+
+# 1. Build the WAR
+mvn clean install
+
+# 2. Start PostgreSQL and WildFly
+docker compose --profile wildfly up --build
+
+# 3. Verify
+curl http://localhost:8080/digibank-app/api/customers
+----
+
+The application is accessible at http://localhost:8080/digibank-app/.
+
+== Available Makefile Commands
+
+A `Makefile` is provided at the project root for common tasks:
+
+[source,shell]
+----
+make build          # Build the project (compile, test, package)
+make up             # Start dev mode (embedded Tomcat + PostgreSQL)
+make up-wildfly     # Start production mode (WildFly + PostgreSQL)
+make up-foreground  # Start dev mode in foreground (see logs)
+make down           # Stop all containers
+make down-volumes   # Stop all containers and remove volumes (wipes DB)
+make logs           # Tail logs from all containers
+make test           # Run all tests
+make smoke-test     # Run smoke tests against a running instance
+make verify         # Full verification: build + up + smoke-test + down
+make clean          # Clean all build artifacts
+----
+
+== Step by Step
+
+[source,shell]
+----
+cd digibank-parent
+
+# 1. Build the project
+mvn clean install
+
+# 2. Start services (choose one profile)
+docker compose --profile dev up --build -d     # Embedded Tomcat
+# or
+docker compose --profile wildfly up --build -d # WildFly
+
+# 3. Test the API
+curl http://localhost:8080/api/customers
+----
+
+== API Endpoints
+
+Once running, the following REST endpoints are available:
+
+* `GET /api/customers` -- List all customers
+* `POST /api/customers` -- Create a customer
+* `GET /api/customers/{id}` -- Get customer by ID
+* `PUT /api/customers/{id}` -- Update customer
+* `DELETE /api/customers/{id}` -- Delete customer
+* `GET /api/accounts` -- List all accounts
+* `POST /api/accounts` -- Create an account
+* `GET /api/transactions` -- List all transactions
+* `POST /api/transactions` -- Create a transaction
+* `GET /api/compliance` -- List all compliance checks
+* `POST /api/compliance` -- Create a compliance check
+
+== Stopping Everything
+
+[source,shell]
+----
+make down             # Stop containers
+make down-volumes     # Also remove database volume
+----
+
+Or manually:
+
+[source,shell]
+----
+cd digibank-parent
+docker compose down          # Stop containers
+docker compose down -v       # Also remove database volume
+----
+
+== Troubleshooting
+
+=== Port Conflicts
+
+If port 8080 or 5433 is already in use, edit `docker-compose.yml` to change
+the host port mapping:
+
+[source,yaml]
+----
+ports:
+  - "8081:8080"   # Change 8080 to an available port
+----
+
+=== Application Fails to Start
+
+Check the logs:
+
+[source,shell]
+----
+docker compose logs app
+docker compose logs wildfly
+----
+
+Common issues:
+
+* PostgreSQL not ready yet (the app depends on it via healthcheck)
+* Port conflict on 8080
+* Insufficient Docker memory (allocate at least 4GB)
+
+=== Database Connection Issues
+
+Verify PostgreSQL is running:
+
+[source,shell]
+----
+docker compose logs db
+docker compose exec db pg_isready -U digibank_user -d digibank_db
+----
