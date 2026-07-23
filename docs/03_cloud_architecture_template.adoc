@@ -1048,14 +1048,16 @@ Execute the following command in the `digibank-parent` directory:
 
 [source,bash]
 ----
-mvn clean install
+cd digibank-parent
+make smoke-test
 ----
 
 ==== 7.2. Deploy with Embedded Tomcat (Development)
 
 [source,bash]
 ----
-docker compose --profile dev up --build
+cd digibank-parent
+make up
 ----
 
 The application starts with embedded Tomcat and connects to the PostgreSQL
@@ -1065,7 +1067,8 @@ container. Access it at http://localhost:8080/.
 
 [source,bash]
 ----
-docker compose --profile wildfly up --build
+cd digibank-parent
+make up-wildfly
 ----
 
 The WAR is deployed to WildFly's auto-deployment directory. Access it at
@@ -1077,12 +1080,17 @@ A `Makefile` is provided at the project root for convenience:
 
 [source,bash]
 ----
-make build          # Build the project
-make up             # Start dev mode (embedded Tomcat)
-make up-wildfly     # Start production mode (WildFly)
-make smoke-test     # Run smoke tests against running instance
+make build          # Build the project (compile, test, package)
+make up             # Start dev mode (embedded Tomcat + PostgreSQL)
+make up-wildfly     # Start production mode (WildFly + PostgreSQL)
+make up-foreground  # Start dev mode in foreground (see logs)
 make down           # Stop all containers
+make down-volumes   # Stop all containers and remove volumes (wipes DB)
+make logs           # Tail logs from all containers
+make test           # Run all tests
+make smoke-test     # Run smoke tests against a running instance
 make verify         # Full verification: build + up + smoke-test + down
+make clean          # Clean all build artifacts
 ----
 
 ==== 7.5. Expected Result

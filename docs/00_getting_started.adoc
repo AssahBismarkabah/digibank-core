@@ -30,6 +30,8 @@ Build and run with embedded Tomcat for local development:
 
 [source,shell]
 ----
+cd digibank-parent
+
 # 1. Build the project
 make build
 
@@ -40,22 +42,6 @@ make up
 make smoke-test
 ----
 
-Or manually:
-
-[source,shell]
-----
-cd digibank-parent
-
-# 1. Build the project
-mvn clean install
-
-# 2. Start PostgreSQL and the app
-docker compose --profile dev up --build
-
-# 3. Verify
-curl http://localhost:8080/api/customers
-----
-
 The application is accessible at http://localhost:8080/.
 
 == Quick Start (WildFly -- Production Mode)
@@ -64,6 +50,8 @@ Build and deploy to WildFly for production-like deployment:
 
 [source,shell]
 ----
+cd digibank-parent
+
 # 1. Build the project
 make build
 
@@ -74,27 +62,12 @@ make up-wildfly
 make smoke-test
 ----
 
-Or manually:
-
-[source,shell]
-----
-cd digibank-parent
-
-# 1. Build the WAR
-mvn clean install
-
-# 2. Start PostgreSQL and WildFly
-docker compose --profile wildfly up --build
-
-# 3. Verify
-curl http://localhost:8080/digibank-app/api/customers
-----
-
 The application is accessible at http://localhost:8080/digibank-app/.
 
 == Available Makefile Commands
 
-A `Makefile` is provided at the project root for common tasks:
+A `Makefile` is provided inside `digibank-parent/` for common tasks (run all
+commands from the `digibank-parent` directory):
 
 [source,shell]
 ----
@@ -111,28 +84,11 @@ make verify         # Full verification: build + up + smoke-test + down
 make clean          # Clean all build artifacts
 ----
 
-== Step by Step
-
-[source,shell]
-----
-cd digibank-parent
-
-# 1. Build the project
-mvn clean install
-
-# 2. Start services (choose one profile)
-docker compose --profile dev up --build -d     # Embedded Tomcat
-# or
-docker compose --profile wildfly up --build -d # WildFly
-
-# 3. Test the API
-curl http://localhost:8080/api/customers
-----
-
 == API Endpoints
 
 Once running, the following REST endpoints are available:
 
+* `GET /` -- Index page (Thymeleaf dashboard)
 * `GET /api/customers` -- List all customers
 * `POST /api/customers` -- Create a customer
 * `GET /api/customers/{id}` -- Get customer by ID
@@ -140,26 +96,30 @@ Once running, the following REST endpoints are available:
 * `DELETE /api/customers/{id}` -- Delete customer
 * `GET /api/accounts` -- List all accounts
 * `POST /api/accounts` -- Create an account
+* `GET /api/accounts/{id}` -- Get account by ID
+* `PUT /api/accounts/{id}` -- Update account
+* `DELETE /api/accounts/{id}` -- Delete account
+* `GET /api/accounts/by-customer/{customerId}` -- List accounts by customer
 * `GET /api/transactions` -- List all transactions
 * `POST /api/transactions` -- Create a transaction
+* `GET /api/transactions/{id}` -- Get transaction by ID
+* `PUT /api/transactions/{id}` -- Update transaction
+* `DELETE /api/transactions/{id}` -- Delete transaction
+* `GET /api/transactions/by-account/{accountId}` -- List transactions by account
 * `GET /api/compliance` -- List all compliance checks
 * `POST /api/compliance` -- Create a compliance check
+* `GET /api/compliance/{id}` -- Get compliance check by ID
+* `PUT /api/compliance/{id}` -- Update compliance check
+* `DELETE /api/compliance/{id}` -- Delete compliance check
+* `GET /api/compliance/by-customer/{customerId}` -- List compliance checks by customer
 
 == Stopping Everything
 
 [source,shell]
 ----
+cd digibank-parent
 make down             # Stop containers
 make down-volumes     # Also remove database volume
-----
-
-Or manually:
-
-[source,shell]
-----
-cd digibank-parent
-docker compose down          # Stop containers
-docker compose down -v       # Also remove database volume
 ----
 
 == Troubleshooting
@@ -181,8 +141,8 @@ Check the logs:
 
 [source,shell]
 ----
-docker compose logs app
-docker compose logs wildfly
+cd digibank-parent
+make logs
 ----
 
 Common issues:
@@ -197,6 +157,7 @@ Verify PostgreSQL is running:
 
 [source,shell]
 ----
+cd digibank-parent
 docker compose logs db
 docker compose exec db pg_isready -U digibank_user -d digibank_db
 ----
