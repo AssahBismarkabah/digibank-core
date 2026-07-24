@@ -118,6 +118,32 @@ and Mockito for unit tests.
 application context, making tests faster and more focused. `MockMvcTester`
 replaces the removed `TestRestTemplate` in Spring Boot 4.x.
 
+*Module coverage:* `digibank-customer` and `digibank-transaction` both follow
+this pattern:
+
+- `*ControllerTest` -- `@WebMvcTest(controllers = XxxController.class)` +
+  `@Import(GlobalExceptionHandler.class)` + `MockMvcTester`, mocking the
+  service layer with `@MockitoBean`.
+- `*ServiceTest` -- `@ExtendWith(MockitoExtension.class)` with `@Mock`
+  repositories and `@InjectMocks` service, covering CRUD paths and
+  business rules (e.g. `TransactionServiceTest` verifies deposit/withdrawal
+  balance updates and insufficient-balance rejection).
+
+*Test-only Spring Boot configuration gotcha:* When a module's `main` package
+already contains a `@SpringBootApplication` class with
+`@EnableJpaRepositories`/`@EntityScan` scanning across `com.digibank`
+(e.g. `TransactionApplication`), a plain `@WebMvcTest(SomeController.class)`
+in a sub-package will still resolve that class as its nearest
+`@SpringBootConfiguration`, pulling in full JPA auto-configuration and
+failing with a missing `entityManagerFactory` bean (no datasource is
+configured in a web slice test). Each module therefore defines its own
+minimal test-only configuration class (e.g. `TestDigiBankTransactionApplication`)
+annotated with `@SpringBootConfiguration @EnableAutoConfiguration
+@ComponentScan(basePackages = "com.digibank.<module>", excludeFilters = ...)`,
+excluding the real `@SpringBootApplication` class from the scan, and
+referenced explicitly via `@ContextConfiguration(classes = ...)` on the
+`@WebMvcTest` class.
+
 == 9. Docker Compose for PostgreSQL + WildFly
 
 *Jakarta EE implementation:* Docker Compose with PostgreSQL 16.
