@@ -104,19 +104,50 @@ while supporting production deployment to WildFly without changes.
 == 8. Spring Boot Testing
 
 *Jakarta EE implementation:* Used Weld JUnit 5 for CDI container testing
-and Mockito for unit tests.
+and Mockito for unit tests, but the test setup was more manual and tied to
+container behavior.
 
-*Spring Boot implementation:* Uses:
+*Spring Boot implementation:* Uses a more modern and focused test stack:
 
-- `@SpringBootTest` for integration tests
-- `@WebMvcTest` for controller slice tests (with `@Import` for controller advice)
-- `Mockito` with `@ExtendWith(MockitoExtension.class)` for unit tests
-- `MockMvcTester` (AssertJ-style) for Cucumber BDD step definitions
-- Cucumber BDD with `@CucumberContextConfiguration` and `@AutoConfigureMockMvc`
+- `@WebMvcTest` for controller slice tests that verify HTTP behavior without
+  booting the whole application
+- `@MockitoBean` to mock service dependencies and keep tests fast and
+  deterministic
+- `MockMvcTester` (AssertJ-style) for expressive request/response assertions
+- `@Import(GlobalExceptionHandler.class)` to verify error handling inside the
+  same web slice
+- `@SpringBootTest` for broader integration tests when the full application
+  context is required
+
+The new compliance controller tests are a good example of this pattern:
+
+[source,java]
+----
+@WebMvcTest(ComplianceController.class)
+@Import(GlobalExceptionHandler.class)
+class ComplianceControllerTest {
+
+    @MockitoBean
+    private ComplianceService complianceService;
+
+    @Test
+    void shouldReturn404WhenComplianceCheckNotFound() {
+        given(complianceService.findById(99L))
+                .willThrow(new EntityNotFoundException("Compliance check not found"));
+
+        mockMvcTester.get()
+                .uri("/api/compliance/99")
+                .exchange()
+                .assertThat()
+                .matches(status().isNotFound());
+    }
+}
+----
 
 *Why:* Spring Boot's testing slices load only the relevant parts of the
-application context, making tests faster and more focused. `MockMvcTester`
-replaces the removed `TestRestTemplate` in Spring Boot 4.x.
+application context, making tests faster and more focused. They also make it
+straightforward to verify both success paths and exception handling with the
+same controller contract used in production.
 
 *Module coverage:* `digibank-customer` and `digibank-transaction` both follow
 this pattern:
