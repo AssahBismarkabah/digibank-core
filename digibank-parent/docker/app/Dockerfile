@@ -5,7 +5,7 @@
 # =============================================================================
 
 # Stage 1: Build the fat JAR
-FROM maven:3-eclipse-temurin-25 AS builder
+FROM maven:3-eclipse-temurin-21 AS builder
 WORKDIR /build
 
 COPY pom.xml .
@@ -30,7 +30,7 @@ COPY digibank-app/src digibank-app/src
 RUN mvn -pl digibank-app -am clean package -DskipTests -B
 
 # Stage 2: Slim JRE runtime
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=builder /build/digibank-app/target/digibank-app.war app.war
 EXPOSE 8080
