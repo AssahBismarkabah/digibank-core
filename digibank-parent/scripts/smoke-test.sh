@@ -67,14 +67,15 @@ fi
 CONTEXT=""
 API=""
 READY=0
-for i in $(seq 1 120); do
-    if curl -sf "$BASE_URL/api/customers" >/dev/null 2>&1; then
+CURL_OPTS="--connect-timeout 3 --max-time 5"
+for i in $(seq 1 300); do
+    if curl -sf $CURL_OPTS "$BASE_URL/api/customers" >/dev/null 2>&1; then
         CONTEXT=""
         API="$BASE_URL"
         READY=1
         sleep 2  # extra settle time for Hibernate to finish schema creation
         break
-    elif curl -sf "$BASE_URL/digibank-app/api/customers" >/dev/null 2>&1; then
+    elif curl -sf $CURL_OPTS "$BASE_URL/digibank-app/api/customers" >/dev/null 2>&1; then
         CONTEXT="/digibank-app"
         API="$BASE_URL$CONTEXT"
         READY=1
