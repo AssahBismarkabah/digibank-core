@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jboss-deployment-structure>
     <deployment>
-        <!-- Exclude WildFly's logging subsystem so the WAR's Logback can take over -->
+        <!-- Exclude WildFly subsystems that conflict with Spring Boot's bundled libraries -->
         <exclude-subsystems>
             <subsystem name="logging"/>
+            <subsystem name="jpa"/>
+            <subsystem name="jaxrs"/>
+            <subsystem name="webservices"/>
+            <subsystem name="bean-validation"/>
         </exclude-subsystems>
+        <!-- Use the deployment's own versions of these libraries instead of WildFly's -->
+        <exclusions>
+            <module name="org.hibernate"/>
+            <module name="jakarta.persistence.api"/>
+            <module name="com.fasterxml.jackson.core.jackson-core"/>
+            <module name="com.fasterxml.jackson.core.jackson-databind"/>
+            <module name="com.fasterxml.jackson.jaxrs.jackson-jaxrs-json-provider"/>
+        </exclusions>
     </deployment>
 </jboss-deployment-structure>

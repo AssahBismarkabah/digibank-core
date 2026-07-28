@@ -66,7 +66,7 @@ fi
 # Probe both during the wait loop and set CONTEXT based on whichever responds.
 CONTEXT=""
 API="$BASE_URL"
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
     if curl -sf "$BASE_URL/api/customers" >/dev/null 2>&1; then
         CONTEXT=""
         API="$BASE_URL"
