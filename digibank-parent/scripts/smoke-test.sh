@@ -65,21 +65,29 @@ fi
 # WildFly deploys the WAR at /digibank-app context path; embedded Tomcat uses /.
 # Probe both during the wait loop and set CONTEXT based on whichever responds.
 CONTEXT=""
-API="$BASE_URL"
-for i in $(seq 1 60); do
+API=""
+READY=0
+for i in $(seq 1 120); do
     if curl -sf "$BASE_URL/api/customers" >/dev/null 2>&1; then
         CONTEXT=""
         API="$BASE_URL"
+        READY=1
         sleep 2  # extra settle time for Hibernate to finish schema creation
         break
     elif curl -sf "$BASE_URL/digibank-app/api/customers" >/dev/null 2>&1; then
         CONTEXT="/digibank-app"
         API="$BASE_URL$CONTEXT"
+        READY=1
         sleep 2
         break
     fi
     sleep 1
 done
+
+if [ "$READY" -eq 0 ]; then
+    printf "  [FAIL] Timed out waiting for application to respond at %s or %s/digibank-app\n" "$BASE_URL" "$BASE_URL"
+    exit 1
+fi
 
 # --- health check -----------------------------------------------------------
 
