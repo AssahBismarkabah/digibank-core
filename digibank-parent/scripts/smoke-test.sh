@@ -18,17 +18,6 @@ FAIL=0
 RUN_ID="${RUN_ID:-$(date +%s)-$$}"
 TEST_ACCOUNT_NUMBER="${TEST_ACCOUNT_NUMBER:-SMK-${RUN_ID:0:16}}"
 
-# --- context path detection --------------------------------------------------
-# WildFly deploys the WAR at /digibank-app context path; embedded Tomcat uses /.
-# Auto-detect by probing both.
-CONTEXT=""
-if curl -sf "$BASE_URL/api/customers" >/dev/null 2>&1; then
-    CONTEXT=""
-elif curl -sf "$BASE_URL/digibank-app/api/customers" >/dev/null 2>&1; then
-    CONTEXT="/digibank-app"
-fi
-API="$BASE_URL$CONTEXT"
-
 # --- helpers ----------------------------------------------------------------
 
 info()  { printf "  [INFO]  %s\n" "$*"; }
@@ -70,15 +59,27 @@ fi
 if [ -n "$APP_CONTAINER" ]; then
     info "Restarting $APP_CONTAINER for a fresh database..."
     docker restart "$APP_CONTAINER" >/dev/null
-    # Wait for the app to become available
-    for i in $(seq 1 30); do
-        if curl -sf "$API/api/customers" >/dev/null 2>&1; then
-            sleep 2  # extra settle time for Hibernate to finish schema creation
-            break
-        fi
-        sleep 1
-    done
 fi
+
+# --- context path detection & wait for availability -------------------------
+# WildFly deploys the WAR at /digibank-app context path; embedded Tomcat uses /.
+# Probe both during the wait loop and set CONTEXT based on whichever responds.
+CONTEXT=""
+API="$BASE_URL"
+for i in $(seq 1 30); do
+    if curl -sf "$BASE_URL/api/customers" >/dev/null 2>&1; then
+        CONTEXT=""
+        API="$BASE_URL"
+        sleep 2  # extra settle time for Hibernate to finish schema creation
+        break
+    elif curl -sf "$BASE_URL/digibank-app/api/customers" >/dev/null 2>&1; then
+        CONTEXT="/digibank-app"
+        API="$BASE_URL$CONTEXT"
+        sleep 2
+        break
+    fi
+    sleep 1
+done
 
 # --- health check -----------------------------------------------------------
 

@@ -47,7 +47,7 @@ jobs:
 
       - name: Run the Spring Boot application context smoke test
         working-directory: digibank-parent
-        run: mvn -B -pl digibank-app -am -Dtest=DigiBankApplicationTests test
+        run: mvn -B -pl digibank-app -am -Dtest=DigiBankApplicationTests -Dsurefire.failIfNoSpecifiedTests=false test
 
   compose-smoke:
     name: Compose smoke (${{ matrix.name }})
