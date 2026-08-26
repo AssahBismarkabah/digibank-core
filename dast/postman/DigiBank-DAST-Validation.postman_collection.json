@@ -1,0 +1,33 @@
+{
+  "info": {
+    "name": "DigiBank DAST Validation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create customer",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"DAST\",\n  \"lastName\": \"Customer\",\n  \"email\": \"{{email}}\"\n}" }, "url": "{{baseUrl}}/api/customers" },
+      "event": [{ "listen": "prerequest", "script": { "exec": ["pm.environment.set('email', 'dast.' + Date.now() + '@example.com');"] } }, { "listen": "test", "script": { "exec": ["pm.test('customer created', () => pm.response.to.have.status(201));", "pm.environment.set('customerId', pm.response.json().id);"] } }]
+    },
+    {
+      "name": "List customers",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/customers" },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('customers listed', () => pm.response.to.have.status(200));", "pm.test('response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));" ] } }]
+    },
+    {
+      "name": "Create account",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"accountNumber\": \"DAST{{customerId}}\",\n  \"balance\": 1000,\n  \"customerId\": {{customerId}},\n  \"accountType\": \"CHECKING\",\n  \"currency\": \"EUR\"\n}" }, "url": "{{baseUrl}}/api/accounts" },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('account created', () => pm.response.to.have.status(201));", "pm.environment.set('accountId', pm.response.json().id);"] } }]
+    },
+    {
+      "name": "Deposit transaction",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"accountId\": {{accountId}},\n  \"amount\": 25,\n  \"transactionType\": \"DEPOSIT\",\n  \"description\": \"DAST deposit\"\n}" }, "url": "{{baseUrl}}/api/transactions" },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('deposit accepted', () => pm.response.to.have.status(201));", "pm.test('reference generated', () => pm.expect(pm.response.json().referenceNumber).to.be.a('string'));" ] } }]
+    },
+    {
+      "name": "Invalid customer validation",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"\",\n  \"lastName\": \"\",\n  \"email\": \"invalid-email\"\n}" }, "url": "{{baseUrl}}/api/customers" },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('invalid input rejected', () => pm.response.to.have.status(400));", "pm.test('validation envelope returned', () => pm.expect(pm.response.json().success).to.eql(false));" ] } }]
+    }
+  ]
+}
