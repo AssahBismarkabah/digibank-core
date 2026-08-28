@@ -59,6 +59,27 @@ services:
     profiles:
       - wildfly
 
+  # DAST profile: OWASP ZAP baseline scan against the running dev app
+  # Usage: docker compose --profile dev --profile zap up --build -d
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    container_name: digibank-zap
+    volumes:
+      - ../dast:/zap/wrk:rw
+    command: >
+      zap-baseline.py
+        -t http://digibank-app:8080
+        -J /zap/wrk/reports/zap-report.json
+        -r /zap/wrk/reports/zap-report.html
+        -x /zap/wrk/reports/zap-report.xml
+        -I
+    depends_on:
+      - app
+    networks:
+      - digibank-net
+    profiles:
+      - zap
+
 networks:
   digibank-net:
     driver: bridge
