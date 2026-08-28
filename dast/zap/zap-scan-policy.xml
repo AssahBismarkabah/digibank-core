@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DigiBank - OWASP ZAP Active Scan Policy
+  =========================================
+  Purpose : Define a focused, baseline-appropriate active scan policy for the
+            initial DAST campaign (Workshop 3, §2.14 / §4.9).
+
+  Design choices
+  - Strength  = LOW  - enough to surface findings without long scan times
+  - Threshold = LOW  - report more findings; students decide relevance
+  - Only the rule categories most relevant to a REST banking API are enabled:
+      - Missing / weak HTTP security headers
+      - Application error / information disclosure
+      - Server banner leakage
+      - Basic injection probes (SQL, path traversal)
+  - Rules that are noisy on a local dev build (e.g., Viewstate for ASP.NET)
+    are disabled.
+
+  After the hardening tickets are merged, raise Strength to MEDIUM and
+  Threshold to MEDIUM, then switch fail_action to "true" in the CI job.
+-->
+<policy>
+  <name>digibank-baseline</name>
+  <description>
+    Focused baseline policy for DigiBank DAST: headers, error disclosure, and
+    information exposure checks at LOW strength / LOW threshold.
+  </description>
+
+  <!-- === Passive scan rules: security headers and information leakage === -->
+
+  <!-- 10010: Secure Pages Include Mixed Content -->
+  <scanner>
+    <id>10010</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10011: Cookie Without Secure Flag -->
+  <scanner>
+    <id>10011</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10015: Incomplete or No Cache-control Header Set -->
+  <scanner>
+    <id>10015</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10019: Content-Type Header Missing -->
+  <scanner>
+    <id>10019</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10020: Anti-clickjacking Header (X-Frame-Options) -->
+  <scanner>
+    <id>10020</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10021: X-Content-Type-Options Header Missing -->
+  <scanner>
+    <id>10021</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10023: Information Disclosure - Debug Error Messages -->
+  <scanner>
+    <id>10023</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10024: Information Disclosure - Sensitive Information in URL -->
+  <scanner>
+    <id>10024</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10027: Information Disclosure - Suspicious Comments -->
+  <scanner>
+    <id>10027</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10035: Strict-Transport-Security Header Not Set (HSTS) -->
+  <scanner>
+    <id>10035</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10036: Server Leaks Version Information via Server HTTP Header -->
+  <scanner>
+    <id>10036</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10037: Server Leaks Information via X-Powered-By HTTP Header -->
+  <scanner>
+    <id>10037</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10038: Content Security Policy (CSP) Header Not Set -->
+  <scanner>
+    <id>10038</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10044: Big Redirect Detected (Potential Sensitive Information Leak) -->
+  <scanner>
+    <id>10044</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10049: Non-Storable Content -->
+  <scanner>
+    <id>10049</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10055: CSP (Content Security Policy) Scanner -->
+  <scanner>
+    <id>10055</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10062: PII Disclosure -->
+  <scanner>
+    <id>10062</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10063: Feature Policy / Permissions Policy Header Not Set -->
+  <scanner>
+    <id>10063</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10096: Timestamp Disclosure -->
+  <scanner>
+    <id>10096</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10098: Cross-Domain Misconfiguration -->
+  <scanner>
+    <id>10098</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 10108: Reverse Tabnabbing -->
+  <scanner>
+    <id>10108</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- === Active scan rules: injection and path traversal === -->
+
+  <!-- 6: Path Traversal -->
+  <scanner>
+    <id>6</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 7: Remote File Inclusion -->
+  <scanner>
+    <id>7</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 40012: Cross Site Scripting (Reflected) -->
+  <scanner>
+    <id>40012</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 40014: Cross Site Scripting (Persistent) -->
+  <scanner>
+    <id>40014</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 40018: SQL Injection -->
+  <scanner>
+    <id>40018</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 40019: SQL Injection - MySQL -->
+  <scanner>
+    <id>40019</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 40020: SQL Injection - Hypersonic SQL -->
+  <scanner>
+    <id>40020</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 40021: SQL Injection - Oracle -->
+  <scanner>
+    <id>40021</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 40022: SQL Injection - PostgreSQL -->
+  <scanner>
+    <id>40022</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+  <!-- 40028: CSRF Countermeasures -->
+  <scanner>
+    <id>40028</id>
+    <enabled>true</enabled>
+    <level>LOW</level>
+    <strength>LOW</strength>
+  </scanner>
+
+</policy>
