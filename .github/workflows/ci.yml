@@ -195,7 +195,6 @@ jobs:
           allow_issue_writing: false
           fail_action: false
           artifact_name: zap-dast-report
-          cmd_options: '-J zap-report.json'
 
       - name: Upload ZAP reports
         if: always()
@@ -206,7 +205,6 @@ jobs:
             report_html.html
             report_json.json
             report_md.md
-            zap-report.json
           if-no-files-found: warn
 
       - name: Clean up compose resources
