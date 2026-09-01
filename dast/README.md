@@ -67,6 +67,12 @@ and writes reports into `dast/reports/` via a bind-mount.
 
 Newman replays the DAST-oriented HTTP scenarios and verifies response envelopes.
 
+> **Note on pre-hardening assertions.** The security-header assertions
+> (test group 4.1) are expected to fail until the hardening tickets add the
+> missing response headers, and the Swagger check (test 4.2) is skipped until
+> the springdoc/OpenAPI dependency lands. These are documented baselines, not
+> regressions.
+
 ```bash
 # one-off
 npx newman run dast/postman/DigiBank-DAST-Validation.postman_collection.json \
@@ -94,8 +100,17 @@ Two jobs are added to `.github/workflows/ci.yml`:
 | `dast-zap`    | OWASP ZAP baseline | After `dast-newman` |
 
 Both jobs upload their reports as GitHub Actions artefacts.
-`fail_action: false` is set on the ZAP job so findings are **informational** until
-a scan policy is agreed (see ticket acceptance criteria).
+By default, findings are **informational** (the ZAP baseline runs with
+`fail_action: false` and the Newman step is non-blocking). To make ZAP alert
+findings fail the job without editing the workflow, set the repository variable
+`DAST_BLOCKING` to `true`:
+
+```
+Settings → Secrets and variables → Actions → Variables → DAST_BLOCKING = true
+```
+
+The intent is to flip the DAST jobs to blocking permanently once the hardening
+tickets are merged.
 
 ---
 

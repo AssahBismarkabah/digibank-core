@@ -123,13 +123,14 @@ jobs:
         run: npm install --no-save --no-package-lock newman newman-reporter-html
 
       - name: Replay the DAST collection with Newman
+        working-directory: digibank-parent
         run: |
-          mkdir -p dast/reports
-          npx newman run dast/postman/DigiBank-DAST-Validation.postman_collection.json \
-            --environment dast/postman/DigiBank-local.postman_environment.json \
+          mkdir -p ../dast/reports
+          npx newman run ../dast/postman/DigiBank-DAST-Validation.postman_collection.json \
+            --environment ../dast/postman/DigiBank-local.postman_environment.json \
             --reporters cli,json,html \
-            --reporter-json-export dast/reports/newman-report.json \
-            --reporter-html-export dast/reports/newman-report.html \
+            --reporter-json-export ../dast/reports/newman-report.json \
+            --reporter-html-export ../dast/reports/newman-report.html \
             --bail || true   # informational – don't block CI before hardening
 
       - name: Upload Newman reports
@@ -187,14 +188,18 @@ jobs:
           exit 1
 
       - name: Run OWASP ZAP baseline scan
-        # fail_action: false – findings are informational until a scan policy is agreed.
-        # Once hardening tickets are merged, change to: fail_action: true
+        # Findings are informational until a scan policy is agreed.
+        # Set the repository variable DAST_BLOCKING=true to make alert-based
+        # findings fail the job. Follow-up hardening track: flip to blocking
+        # permanently once the hardening tickets are merged.
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: http://127.0.0.1:8080/
           allow_issue_writing: false
-          fail_action: false
-          artifact_name: zap-dast-report
+          fail_action: ${{ vars.DAST_BLOCKING == 'true' }}
+          # artifact_name is intentionally unset so the action keeps its default
+          # report filenames (report_html.html, report_json.json, report_md.md)
+          # which the upload step below expects.
 
       - name: Upload ZAP reports
         if: always()

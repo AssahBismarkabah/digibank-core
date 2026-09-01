@@ -26,8 +26,10 @@
 #   docker  (Docker Engine or Docker Desktop)
 #
 # Notes
-#   * Exit code is always 0 so pre-hardening findings don't block workflows.
-#     Change ZAP_EXIT_CODE below to "$ZAP_RAW_EXIT" to make failures blocking.
+#   * Alert-based findings do not block the workflow (informational until a scan
+#     policy is agreed). Change ZAP_EXIT_CODE below to exit "$ZAP_RAW_EXIT" to
+#     make failing alerts blocking. Scan-process failures (docker/image/startup
+#     errors) always fail the script.
 #   * The scan policy dast/zap/zap-scan-policy.xml is used only in full mode.
 #     Baseline mode uses ZAP's built-in passive-scan ruleset.
 # =============================================================================
@@ -41,7 +43,7 @@ DAST_DIR="$REPO_ROOT/../dast"
 REPORTS_DIR="$DAST_DIR/reports"
 ZAP_DIR="$DAST_DIR/zap"
 
-TARGET="${BASE_URL:-http://host.docker.internal:8080}"
+TARGET="${BASE_URL:-http://localhost:8080}"
 SCAN_MODE="baseline"
 ZAP_IMAGE="ghcr.io/zaproxy/zaproxy:stable"
 
@@ -151,14 +153,24 @@ else
 fi
 
 # ── run ZAP -----------------------------------------------------------------
-set +e  # allow ZAP to exit non-zero (alerts present) without aborting
+set +e  # allow ZAP to exit non-zero (alerts present or scan failure) without aborting
 docker run "${COMMON_ARGS[@]}" "${ZAP_CMD[@]}"
 ZAP_RAW_EXIT=$?
 set -e
 
-# Intentionally always exit 0 until a scan policy is agreed.
-# Change to: exit "$ZAP_RAW_EXIT"  to make failing alerts block the script.
-ZAP_EXIT_CODE=0
+# Distinguish "scan completed" from "scan failed":
+#   * `-I` makes ZAP return 0 for alert-based findings, so a non-zero exit here
+#     means the scan process itself failed to run (docker unavailable, image or
+#     container failed to start, ZAP errored out) and must be surfaced.
+#   * Alert-based findings remain informational until a scan policy is agreed.
+# Change ZAP_EXIT_CODE below to exit "$ZAP_RAW_EXIT" to make failing alerts
+# block the script once a scan policy is agreed.
+if [[ "$ZAP_RAW_EXIT" -ne 0 ]]; then
+  warn "ZAP scan process failed (exit code $ZAP_RAW_EXIT)."
+  ZAP_EXIT_CODE="$ZAP_RAW_EXIT"
+else
+  ZAP_EXIT_CODE=0
+fi
 
 # ── summary -----------------------------------------------------------------
 echo ""
@@ -170,8 +182,8 @@ echo "  Reports :"
 for f in "$REPORTS_DIR"/zap-report.{html,json,xml}; do
   [[ -f "$f" ]] && echo "    $f"
 done
-echo "  Raw ZAP exit code: $ZAP_RAW_EXIT (non-zero = alerts found)"
-echo "  Script exit code : $ZAP_EXIT_CODE (informational mode)"
+echo "  Raw ZAP exit code: $ZAP_RAW_EXIT (non-zero = scan process failed; -I keeps alert findings from blocking)"
+echo "  Script exit code : $ZAP_EXIT_CODE (informational mode for alerts; hard failure on scan errors)"
 echo "=================================================="
 echo ""
 info "To open the HTML report:"

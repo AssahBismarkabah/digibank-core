@@ -33,6 +33,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || wget -q -O /dev/null http://127.0.0.1:8080/api/customers"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     networks:
       - digibank-net
     profiles:
@@ -74,7 +80,8 @@ services:
         -x /zap/wrk/reports/zap-report.xml
         -I
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     networks:
       - digibank-net
     profiles:
