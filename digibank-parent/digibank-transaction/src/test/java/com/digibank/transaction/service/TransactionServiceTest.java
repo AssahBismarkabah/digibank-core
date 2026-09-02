@@ -4,6 +4,7 @@ import com.digibank.account.model.Account;
 import com.digibank.account.repository.AccountRepository;
 import com.digibank.transaction.dto.TransactionRequest;
 import com.digibank.transaction.dto.TransactionResponse;
+import com.digibank.transaction.dto.TransactionSummaryResponse;
 import com.digibank.transaction.model.Transaction;
 import com.digibank.transaction.repository.TransactionRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -110,7 +111,7 @@ class TransactionServiceTest {
         );
         given(transactionRepository.findAll()).willReturn(transactions);
 
-        List<TransactionResponse> responses = transactionService.findAll();
+        List<TransactionSummaryResponse> responses = transactionService.findAll();
 
         assertThat(responses).hasSize(2);
         assertThat(responses.get(0).getDescription()).isEqualTo("Coffee");
@@ -151,10 +152,9 @@ class TransactionServiceTest {
         );
         given(transactionRepository.findByAccountIdOrderByTransactionDateDesc(10L)).willReturn(transactions);
 
-        List<TransactionResponse> responses = transactionService.findByAccountId(10L);
+        List<TransactionSummaryResponse> responses = transactionService.findByAccountId(10L);
 
         assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getAccountId()).isEqualTo(10L);
         assertThat(responses.get(0).getDescription()).isEqualTo("Salary");
     }
 }

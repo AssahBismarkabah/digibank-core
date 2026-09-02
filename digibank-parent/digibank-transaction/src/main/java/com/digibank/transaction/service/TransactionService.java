@@ -4,6 +4,7 @@ import com.digibank.account.model.Account;
 import com.digibank.account.repository.AccountRepository;
 import com.digibank.transaction.dto.TransactionRequest;
 import com.digibank.transaction.dto.TransactionResponse;
+import com.digibank.transaction.dto.TransactionSummaryResponse;
 import com.digibank.transaction.model.Transaction;
 import com.digibank.transaction.repository.TransactionRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -52,9 +53,9 @@ public class TransactionService {
     }
 
     @Transactional(readOnly = true)
-    public List<TransactionResponse> findAll() {
+    public List<TransactionSummaryResponse> findAll() {
         return transactionRepository.findAll().stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -66,9 +67,9 @@ public class TransactionService {
     }
 
     @Transactional(readOnly = true)
-    public List<TransactionResponse> findByAccountId(Long accountId) {
+    public List<TransactionSummaryResponse> findByAccountId(Long accountId) {
         return transactionRepository.findByAccountIdOrderByTransactionDateDesc(accountId).stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -96,5 +97,11 @@ public class TransactionService {
                 transaction.getAmount(), transaction.getTransactionType(),
                 transaction.getDescription(), transaction.getReferenceNumber(),
                 transaction.getTransactionDate());
+    }
+
+    private TransactionSummaryResponse toSummaryResponse(Transaction transaction) {
+        return new TransactionSummaryResponse(transaction.getId(), transaction.getAmount(),
+                transaction.getTransactionType(), transaction.getDescription(),
+                transaction.getReferenceNumber(), transaction.getTransactionDate());
     }
 }

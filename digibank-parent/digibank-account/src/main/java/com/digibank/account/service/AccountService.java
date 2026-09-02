@@ -2,6 +2,7 @@ package com.digibank.account.service;
 
 import com.digibank.account.dto.AccountRequest;
 import com.digibank.account.dto.AccountResponse;
+import com.digibank.account.dto.AccountSummaryResponse;
 import com.digibank.account.model.Account;
 import com.digibank.account.repository.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -31,9 +32,9 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
-    public List<AccountResponse> findAll() {
+    public List<AccountSummaryResponse> findAll() {
         return accountRepository.findAll().stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -45,9 +46,9 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
-    public List<AccountResponse> findByCustomerId(Long customerId) {
+    public List<AccountSummaryResponse> findByCustomerId(Long customerId) {
         return accountRepository.findByCustomerId(customerId).stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -71,8 +72,20 @@ public class AccountService {
     }
 
     private AccountResponse toResponse(Account account) {
-        return new AccountResponse(account.getId(), account.getAccountNumber(),
+        return new AccountResponse(account.getId(), maskAccountNumber(account.getAccountNumber()),
                 account.getBalance(), account.getCustomerId(),
                 account.getAccountType(), account.getCurrency());
+    }
+
+    private AccountSummaryResponse toSummaryResponse(Account account) {
+        return new AccountSummaryResponse(account.getId(), maskAccountNumber(account.getAccountNumber()),
+                account.getAccountType(), account.getCurrency());
+    }
+
+    private String maskAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.length() <= 4) {
+            return "****";
+        }
+        return "****" + accountNumber.substring(accountNumber.length() - 4);
     }
 }
