@@ -2,6 +2,7 @@ package com.digibank.compliance.service;
 
 import com.digibank.compliance.dto.ComplianceRequest;
 import com.digibank.compliance.dto.ComplianceResponse;
+import com.digibank.compliance.dto.ComplianceSummaryResponse;
 import com.digibank.compliance.model.ComplianceCheck;
 import com.digibank.compliance.repository.ComplianceRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -55,6 +56,7 @@ class ComplianceServiceTest {
         assertThat(response.getCustomerId()).isEqualTo(1L);
         assertThat(response.getCheckType()).isEqualTo("KYC");
         assertThat(response.getStatus()).isEqualTo("PENDING");
+        assertThat(response.getRemarks()).isEqualTo("Initial check");
         then(complianceRepository).should().save(any(ComplianceCheck.class));
     }
 
@@ -66,7 +68,7 @@ class ComplianceServiceTest {
         );
         given(complianceRepository.findAll()).willReturn(checks);
 
-        List<ComplianceResponse> responses = complianceService.findAll();
+        List<ComplianceSummaryResponse> responses = complianceService.findAll();
 
         assertThat(responses).hasSize(2);
         assertThat(responses.get(0).getCheckType()).isEqualTo("KYC");
@@ -111,7 +113,6 @@ class ComplianceServiceTest {
 
         assertThat(response.getCheckType()).isEqualTo("AML");
         assertThat(response.getStatus()).isEqualTo("APPROVED");
-        assertThat(response.getCheckedBy()).isEqualTo("officer2");
         assertThat(response.getRemarks()).isEqualTo("Updated remarks");
     }
 
@@ -157,10 +158,10 @@ class ComplianceServiceTest {
         );
         given(complianceRepository.findByCustomerId(1L)).willReturn(checks);
 
-        List<ComplianceResponse> responses = complianceService.findByCustomerId(1L);
+        List<ComplianceSummaryResponse> responses = complianceService.findByCustomerId(1L);
 
         assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getCustomerId()).isEqualTo(1L);
-        assertThat(responses.get(1).getCustomerId()).isEqualTo(1L);
+        assertThat(responses.get(0).getCheckType()).isEqualTo("KYC");
+        assertThat(responses.get(1).getCheckType()).isEqualTo("AML");
     }
 }

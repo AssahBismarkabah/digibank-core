@@ -2,6 +2,7 @@ package com.digibank.account.service;
 
 import com.digibank.account.dto.AccountRequest;
 import com.digibank.account.dto.AccountResponse;
+import com.digibank.account.dto.AccountSummaryResponse;
 import com.digibank.account.model.Account;
 import com.digibank.account.repository.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -54,7 +55,7 @@ class AccountServiceTest {
         AccountResponse response = accountService.create(request);
 
         assertThat(response.getId()).isEqualTo(1L);
-        assertThat(response.getAccountNumber()).isEqualTo("ACC001");
+        assertThat(response.getMaskedAccountNumber()).isEqualTo("****C001");
         assertThat(response.getBalance()).isEqualByComparingTo(new BigDecimal("1000.00"));
         assertThat(response.getCustomerId()).isEqualTo(1L);
         then(accountRepository).should().save(any(Account.class));
@@ -86,11 +87,11 @@ class AccountServiceTest {
         );
         given(accountRepository.findAll()).willReturn(accounts);
 
-        List<AccountResponse> responses = accountService.findAll();
+        List<AccountSummaryResponse> responses = accountService.findAll();
 
         assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getAccountNumber()).isEqualTo("ACC001");
-        assertThat(responses.get(1).getAccountNumber()).isEqualTo("ACC002");
+        assertThat(responses.get(0).getMaskedAccountNumber()).isEqualTo("****C001");
+        assertThat(responses.get(1).getMaskedAccountNumber()).isEqualTo("****C002");
     }
 
     @Test
@@ -101,7 +102,7 @@ class AccountServiceTest {
         AccountResponse response = accountService.findById(1L);
 
         assertThat(response.getId()).isEqualTo(1L);
-        assertThat(response.getAccountNumber()).isEqualTo("ACC001");
+        assertThat(response.getMaskedAccountNumber()).isEqualTo("****C001");
         assertThat(response.getBalance()).isEqualByComparingTo(new BigDecimal("1000.00"));
     }
 
@@ -160,10 +161,10 @@ class AccountServiceTest {
         );
         given(accountRepository.findByCustomerId(1L)).willReturn(accounts);
 
-        List<AccountResponse> responses = accountService.findByCustomerId(1L);
+        List<AccountSummaryResponse> responses = accountService.findByCustomerId(1L);
 
         assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getCustomerId()).isEqualTo(1L);
-        assertThat(responses.get(1).getCustomerId()).isEqualTo(1L);
+        assertThat(responses.get(0).getMaskedAccountNumber()).isEqualTo("****C001");
+        assertThat(responses.get(1).getMaskedAccountNumber()).isEqualTo("****C002");
     }
 }
