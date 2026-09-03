@@ -5,25 +5,6 @@ campaign described in the Workshop 3 guide (§2.13-2.15, §4.9).
 
 ---
 
-## Directory layout
-
-```
-dast/
-├── README.md                   ← you are here
-├── postman/
-│   ├── DigiBank-DAST-Validation.postman_collection.json
-│   └── DigiBank-local.postman_environment.json
-├── reports/
-│   ├── baseline/               ← committed baseline from the first scan
-│   │   └── README.md
-│   └── .gitkeep
-└── zap/
-    ├── zap-context.xml         ← ZAP context (target URL + scope)
-    └── zap-scan-policy.xml     ← active-scan policy (headers / error disclosure / exposure)
-```
-
----
-
 ## Running ZAP locally
 
 > **Prerequisite**: the DigiBank dev stack must be running on port 8080.
