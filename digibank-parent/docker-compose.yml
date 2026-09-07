@@ -27,6 +27,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/digibank_db
       SPRING_DATASOURCE_USERNAME: digibank_user
       SPRING_DATASOURCE_PASSWORD: digibank_pwd
@@ -54,6 +55,7 @@ services:
       - "8080:8080"
       - "9990:9990"
     environment:
+      SPRING_PROFILES_ACTIVE: wildfly
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/digibank_db
       SPRING_DATASOURCE_USERNAME: digibank_user
       SPRING_DATASOURCE_PASSWORD: digibank_pwd
