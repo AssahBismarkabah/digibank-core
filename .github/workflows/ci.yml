@@ -120,18 +120,14 @@ jobs:
           exit 1
 
       - name: Install Newman and HTML reporter
-        run: npm install --no-save --no-package-lock newman newman-reporter-html
+        run: npm install --no-save --no-package-lock newman@6 newman-reporter-html
 
       - name: Replay the DAST collection with Newman
         working-directory: digibank-parent
         run: |
-          mkdir -p ../dast/reports
-          npx newman run ../dast/postman/DigiBank-DAST-Validation.postman_collection.json \
-            --environment ../dast/postman/DigiBank-local.postman_environment.json \
-            --reporters cli,json,html \
-            --reporter-json-export ../dast/reports/newman-report.json \
-            --reporter-html-export ../dast/reports/newman-report.html \
-            --bail || true   # informational – don't block CI before hardening
+          # Informational (non-blocking) until the hardening tickets land;
+          # flip to blocking by removing `--informational` afterwards.
+          ../dast/postman/newman-run.sh --env local --informational
 
       - name: Upload Newman reports
         if: always()
@@ -139,8 +135,8 @@ jobs:
         with:
           name: newman-dast-reports
           path: |
-            dast/reports/newman-report.json
-            dast/reports/newman-report.html
+            dast/reports/**/newman-report.json
+            dast/reports/**/newman-report.html
           if-no-files-found: warn
 
       - name: Clean up compose resources

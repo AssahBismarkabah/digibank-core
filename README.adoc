@@ -52,6 +52,9 @@ All commands run from the `digibank-parent/` directory:
 | `make smoke-test`
 | Run smoke tests against a running instance
 
+| `make newman-scan`
+| Replay the DAST Postman collection with Newman against a running instance
+
 | `make logs`
 | Tail logs from all containers
 
