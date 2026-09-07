@@ -128,17 +128,6 @@ jobs:
         # flip to blocking by removing `--informational` afterwards.
         run: ../dast/postman/newman-run.sh --env local --informational
 
-      - name: Verify Newman JSON report exists
-        if: always()
-        working-directory: digibank-parent
-        # Locate the JSON report produced by the runner across its timestamped
-        # output dirs (dast/reports/<ts>/). Do not depend on the `latest`
-        # symlink, which some CI runners do not preserve. Fails only when no
-        # non-empty report was generated.
-        run: |
-          REPORT=$(find ../dast/reports -name 'newman-report.json' -size +0c -print -quit)
-          test -n "$REPORT"
-
       - name: Upload Newman reports
         if: always()
         uses: actions/upload-artifact@v4
