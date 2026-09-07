@@ -2,38 +2,29 @@ package com.digibank.compliance.dto;
 
 import java.time.LocalDateTime;
 
-public class ComplianceResponse {
+public class ComplianceSummaryResponse {
 
     private Long id;
-    private Long customerId;
     private String checkType;
     private String status;
-    private String remarks;
     private LocalDateTime checkDate;
 
-    public ComplianceResponse() {}
+    public ComplianceSummaryResponse() {}
 
-    public ComplianceResponse(Long id, Long customerId, String checkType,
-                             String status, String remarks,
-                             LocalDateTime checkDate) {
+    public ComplianceSummaryResponse(Long id, String checkType, String status,
+                                     LocalDateTime checkDate) {
         this.id = id;
-        this.customerId = customerId;
         this.checkType = checkType;
         this.status = status;
-        this.remarks = remarks;
         this.checkDate = checkDate;
     }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public Long getCustomerId() { return customerId; }
-    public void setCustomerId(Long customerId) { this.customerId = customerId; }
     public String getCheckType() { return checkType; }
     public void setCheckType(String checkType) { this.checkType = checkType; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public String getRemarks() { return remarks; }
-    public void setRemarks(String remarks) { this.remarks = remarks; }
     public LocalDateTime getCheckDate() { return checkDate; }
     public void setCheckDate(LocalDateTime checkDate) { this.checkDate = checkDate; }
 }

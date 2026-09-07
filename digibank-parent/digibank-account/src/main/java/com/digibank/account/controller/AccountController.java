@@ -2,6 +2,7 @@ package com.digibank.account.controller;
 
 import com.digibank.account.dto.AccountRequest;
 import com.digibank.account.dto.AccountResponse;
+import com.digibank.account.dto.AccountSummaryResponse;
 import com.digibank.account.service.AccountService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class AccountController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AccountResponse>> findAll() {
+    public ResponseEntity<List<AccountSummaryResponse>> findAll() {
         return ResponseEntity.ok(accountService.findAll());
     }
 
@@ -31,7 +32,7 @@ public class AccountController {
     }
 
     @GetMapping("/by-customer/{customerId}")
-    public ResponseEntity<List<AccountResponse>> findByCustomerId(@PathVariable Long customerId) {
+    public ResponseEntity<List<AccountSummaryResponse>> findByCustomerId(@PathVariable Long customerId) {
         return ResponseEntity.ok(accountService.findByCustomerId(customerId));
     }
 

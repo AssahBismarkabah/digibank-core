@@ -2,6 +2,7 @@ package com.digibank.transaction.controller;
 
 import com.digibank.transaction.dto.TransactionRequest;
 import com.digibank.transaction.dto.TransactionResponse;
+import com.digibank.transaction.dto.TransactionSummaryResponse;
 import com.digibank.transaction.service.TransactionService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class TransactionController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TransactionResponse>> findAll() {
+    public ResponseEntity<List<TransactionSummaryResponse>> findAll() {
         return ResponseEntity.ok(transactionService.findAll());
     }
 
@@ -31,7 +32,7 @@ public class TransactionController {
     }
 
     @GetMapping("/by-account/{accountId}")
-    public ResponseEntity<List<TransactionResponse>> findByAccountId(@PathVariable Long accountId) {
+    public ResponseEntity<List<TransactionSummaryResponse>> findByAccountId(@PathVariable Long accountId) {
         return ResponseEntity.ok(transactionService.findByAccountId(accountId));
     }
 
