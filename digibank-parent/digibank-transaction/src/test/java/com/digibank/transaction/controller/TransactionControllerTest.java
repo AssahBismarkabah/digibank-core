@@ -4,6 +4,7 @@ import com.digibank.shared.exception.GlobalExceptionHandler;
 import com.digibank.transaction.TestDigiBankTransactionApplication;
 import com.digibank.transaction.dto.TransactionRequest;
 import com.digibank.transaction.dto.TransactionResponse;
+import com.digibank.transaction.dto.TransactionSummaryResponse;
 import com.digibank.transaction.service.TransactionService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -135,7 +136,7 @@ class TransactionControllerTest {
 
     @Test
     void shouldFindTransactionsByAccount() throws Exception {
-        var response = new TransactionResponse(1L, 10L, new BigDecimal("50.00"),
+        var response = new TransactionSummaryResponse(1L, new BigDecimal("50.00"),
                 "DEPOSIT", "Salary", "ref-1", LocalDateTime.now());
         given(transactionService.findByAccountId(10L)).willReturn(List.of(response));
 
@@ -144,6 +145,7 @@ class TransactionControllerTest {
                 .exchange();
 
         result.assertThat().matches(status().isOk());
-        assertThat(result.getResponse().getContentAsString()).contains("\"accountId\":10");
+        assertThat(result.getResponse().getContentAsString()).contains("\"description\":\"Salary\"");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"accountId\"");
     }
 }

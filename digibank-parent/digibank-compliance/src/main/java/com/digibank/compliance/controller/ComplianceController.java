@@ -2,6 +2,7 @@ package com.digibank.compliance.controller;
 
 import com.digibank.compliance.dto.ComplianceRequest;
 import com.digibank.compliance.dto.ComplianceResponse;
+import com.digibank.compliance.dto.ComplianceSummaryResponse;
 import com.digibank.compliance.service.ComplianceService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class ComplianceController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ComplianceResponse>> findAll() {
+    public ResponseEntity<List<ComplianceSummaryResponse>> findAll() {
         return ResponseEntity.ok(complianceService.findAll());
     }
 
@@ -31,7 +32,7 @@ public class ComplianceController {
     }
 
     @GetMapping("/by-customer/{customerId}")
-    public ResponseEntity<List<ComplianceResponse>> findByCustomerId(@PathVariable Long customerId) {
+    public ResponseEntity<List<ComplianceSummaryResponse>> findByCustomerId(@PathVariable Long customerId) {
         return ResponseEntity.ok(complianceService.findByCustomerId(customerId));
     }
 

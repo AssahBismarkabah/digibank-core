@@ -2,12 +2,14 @@ package com.digibank.account.service;
 
 import com.digibank.account.dto.AccountRequest;
 import com.digibank.account.dto.AccountResponse;
+import com.digibank.account.dto.AccountSummaryResponse;
 import com.digibank.account.model.Account;
 import com.digibank.account.repository.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -31,9 +33,9 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
-    public List<AccountResponse> findAll() {
+    public List<AccountSummaryResponse> findAll() {
         return accountRepository.findAll().stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -45,9 +47,9 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
-    public List<AccountResponse> findByCustomerId(Long customerId) {
+    public List<AccountSummaryResponse> findByCustomerId(Long customerId) {
         return accountRepository.findByCustomerId(customerId).stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -63,6 +65,26 @@ public class AccountService {
         return toResponse(account);
     }
 
+    public void creditAccount(Account account, BigDecimal amount) {
+        requireAccount(account);
+        requirePositiveAmount(amount);
+
+        account.setBalance(account.getBalance().add(amount));
+        accountRepository.save(account);
+    }
+
+    public void debitAccount(Account account, BigDecimal amount) {
+        requireAccount(account);
+        requirePositiveAmount(amount);
+
+        if (account.getBalance().compareTo(amount) < 0) {
+            throw new IllegalArgumentException("Transaction could not be processed");
+        }
+
+        account.setBalance(account.getBalance().subtract(amount));
+        accountRepository.save(account);
+    }
+
     public void delete(Long id) {
         if (!accountRepository.existsById(id)) {
             throw new EntityNotFoundException("Account not found with id: " + id);
@@ -70,9 +92,36 @@ public class AccountService {
         accountRepository.deleteById(id);
     }
 
+    private void requireAccount(Account account) {
+        if (account == null) {
+            throw new IllegalArgumentException("Account is required");
+        }
+        if (account.getBalance() == null) {
+            throw new IllegalArgumentException("Account balance is required");
+        }
+    }
+
+    private void requirePositiveAmount(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+    }
+
     private AccountResponse toResponse(Account account) {
-        return new AccountResponse(account.getId(), account.getAccountNumber(),
+        return new AccountResponse(account.getId(), maskAccountNumber(account.getAccountNumber()),
                 account.getBalance(), account.getCustomerId(),
                 account.getAccountType(), account.getCurrency());
+    }
+
+    private AccountSummaryResponse toSummaryResponse(Account account) {
+        return new AccountSummaryResponse(account.getId(), maskAccountNumber(account.getAccountNumber()),
+                account.getAccountType(), account.getCurrency());
+    }
+
+    private String maskAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.length() <= 4) {
+            return "****";
+        }
+        return "****" + accountNumber.substring(accountNumber.length() - 4);
     }
 }

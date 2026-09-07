@@ -2,6 +2,7 @@ package com.digibank.account.service;
 
 import com.digibank.account.dto.AccountRequest;
 import com.digibank.account.dto.AccountResponse;
+import com.digibank.account.dto.AccountSummaryResponse;
 import com.digibank.account.model.Account;
 import com.digibank.account.repository.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -54,7 +55,7 @@ class AccountServiceTest {
         AccountResponse response = accountService.create(request);
 
         assertThat(response.getId()).isEqualTo(1L);
-        assertThat(response.getAccountNumber()).isEqualTo("ACC001");
+        assertThat(response.getMaskedAccountNumber()).isEqualTo("****C001");
         assertThat(response.getBalance()).isEqualByComparingTo(new BigDecimal("1000.00"));
         assertThat(response.getCustomerId()).isEqualTo(1L);
         then(accountRepository).should().save(any(Account.class));
@@ -86,11 +87,11 @@ class AccountServiceTest {
         );
         given(accountRepository.findAll()).willReturn(accounts);
 
-        List<AccountResponse> responses = accountService.findAll();
+        List<AccountSummaryResponse> responses = accountService.findAll();
 
         assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getAccountNumber()).isEqualTo("ACC001");
-        assertThat(responses.get(1).getAccountNumber()).isEqualTo("ACC002");
+        assertThat(responses.get(0).getMaskedAccountNumber()).isEqualTo("****C001");
+        assertThat(responses.get(1).getMaskedAccountNumber()).isEqualTo("****C002");
     }
 
     @Test
@@ -101,7 +102,7 @@ class AccountServiceTest {
         AccountResponse response = accountService.findById(1L);
 
         assertThat(response.getId()).isEqualTo(1L);
-        assertThat(response.getAccountNumber()).isEqualTo("ACC001");
+        assertThat(response.getMaskedAccountNumber()).isEqualTo("****C001");
         assertThat(response.getBalance()).isEqualByComparingTo(new BigDecimal("1000.00"));
     }
 
@@ -135,6 +136,61 @@ class AccountServiceTest {
     }
 
     @Test
+    void shouldCreditAccount() {
+        var account = accountWithId(1L, "ACC001", new BigDecimal("100.00"), 1L, "SAVINGS", "USD");
+        given(accountRepository.save(any(Account.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        accountService.creditAccount(account, new BigDecimal("25.00"));
+
+        assertThat(account.getBalance()).isEqualByComparingTo("125.00");
+        then(accountRepository).should().save(account);
+    }
+
+    @Test
+    void shouldDebitAccount() {
+        var account = accountWithId(1L, "ACC001", new BigDecimal("100.00"), 1L, "SAVINGS", "USD");
+        given(accountRepository.save(any(Account.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        accountService.debitAccount(account, new BigDecimal("25.00"));
+
+        assertThat(account.getBalance()).isEqualByComparingTo("75.00");
+        then(accountRepository).should().save(account);
+    }
+
+    @Test
+    void shouldRejectDebitWhenAccountIsNull() {
+        assertThatThrownBy(() -> accountService.debitAccount(null, new BigDecimal("25.00")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Account is required");
+
+        then(accountRepository).should(never()).save(any(Account.class));
+    }
+
+    @Test
+    void shouldRejectDebitWhenAmountIsZero() {
+        var account = accountWithId(1L, "ACC001", new BigDecimal("100.00"), 1L, "SAVINGS", "USD");
+
+        assertThatThrownBy(() -> accountService.debitAccount(account, BigDecimal.ZERO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Amount must be positive");
+
+        assertThat(account.getBalance()).isEqualByComparingTo("100.00");
+        then(accountRepository).should(never()).save(any(Account.class));
+    }
+
+    @Test
+    void shouldRejectDebitWhenBalanceIsInsufficient() {
+        var account = accountWithId(1L, "ACC001", new BigDecimal("50.00"), 1L, "SAVINGS", "USD");
+
+        assertThatThrownBy(() -> accountService.debitAccount(account, new BigDecimal("100.00")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Transaction could not be processed");
+
+        assertThat(account.getBalance()).isEqualByComparingTo("50.00");
+        then(accountRepository).should(never()).save(any(Account.class));
+    }
+
+    @Test
     void shouldDeleteAccount() {
         given(accountRepository.existsById(1L)).willReturn(true);
 
@@ -160,10 +216,10 @@ class AccountServiceTest {
         );
         given(accountRepository.findByCustomerId(1L)).willReturn(accounts);
 
-        List<AccountResponse> responses = accountService.findByCustomerId(1L);
+        List<AccountSummaryResponse> responses = accountService.findByCustomerId(1L);
 
         assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getCustomerId()).isEqualTo(1L);
-        assertThat(responses.get(1).getCustomerId()).isEqualTo(1L);
+        assertThat(responses.get(0).getMaskedAccountNumber()).isEqualTo("****C001");
+        assertThat(responses.get(1).getMaskedAccountNumber()).isEqualTo("****C002");
     }
 }

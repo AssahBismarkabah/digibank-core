@@ -3,7 +3,7 @@
 # Makefile for building, deploying, and testing via Docker Compose
 # =============================================================================
 
-.PHONY: build build-skip-tests up up-wildfly up-foreground down down-volumes logs logs-app logs-db test smoke-test verify clean help
+.PHONY: build build-skip-tests up up-wildfly up-foreground down down-volumes logs logs-app logs-db test smoke-test verify zap-scan zap-report clean help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -49,3 +49,11 @@ verify: build up smoke-test down ## Full verification: build, start, smoke-test,
 
 clean: ## Clean all build artifacts
 	mvn clean
+
+zap-scan: ## Run OWASP ZAP baseline scan against a running dev stack (starts stack if needed)
+	scripts/zap-scan.sh
+
+zap-report: ## Open the latest ZAP HTML report in the default browser
+	@xdg-open ../dast/reports/zap-report.html 2>/dev/null || \
+	 open ../dast/reports/zap-report.html 2>/dev/null || \
+	 echo "Open manually: ../dast/reports/zap-report.html"

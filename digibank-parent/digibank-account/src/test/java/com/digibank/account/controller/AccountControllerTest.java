@@ -2,6 +2,7 @@ package com.digibank.account.controller;
 
 import com.digibank.account.dto.AccountRequest;
 import com.digibank.account.dto.AccountResponse;
+import com.digibank.account.dto.AccountSummaryResponse;
 import com.digibank.account.service.AccountService;
 import com.digibank.shared.exception.GlobalExceptionHandler;
 import tools.jackson.databind.ObjectMapper;
@@ -49,8 +50,8 @@ class AccountControllerTest {
         result.assertThat()
                 .matches(status().isOk());
 
-        AccountResponse[] responses = objectMapper.readValue(
-                result.getResponse().getContentAsString(), AccountResponse[].class);
+        AccountSummaryResponse[] responses = objectMapper.readValue(
+                result.getResponse().getContentAsString(), AccountSummaryResponse[].class);
         assertThat(responses).isEmpty();
     }
 
@@ -63,7 +64,7 @@ class AccountControllerTest {
         request.setAccountType("SAVINGS");
         request.setCurrency("USD");
 
-        var response = new AccountResponse(1L, "ACC001", new BigDecimal("1000.00"), 1L, "SAVINGS", "USD");
+        var response = new AccountResponse(1L, "****C001", new BigDecimal("1000.00"), 1L, "SAVINGS", "USD");
         given(accountService.create(any(AccountRequest.class))).willReturn(response);
 
         var result = mockMvcTester.post()
@@ -78,12 +79,13 @@ class AccountControllerTest {
         AccountResponse body = objectMapper.readValue(
                 result.getResponse().getContentAsString(), AccountResponse.class);
         assertThat(body.getId()).isEqualTo(1L);
-        assertThat(body.getAccountNumber()).isEqualTo("ACC001");
+        assertThat(body.getMaskedAccountNumber()).isEqualTo("****C001");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"accountNumber\"");
     }
 
     @Test
     void shouldReturnAccountById() throws Exception {
-        var response = new AccountResponse(1L, "ACC001", new BigDecimal("1000.00"), 1L, "SAVINGS", "USD");
+        var response = new AccountResponse(1L, "****C001", new BigDecimal("1000.00"), 1L, "SAVINGS", "USD");
         given(accountService.findById(1L)).willReturn(response);
 
         var result = mockMvcTester.get()
@@ -95,7 +97,7 @@ class AccountControllerTest {
 
         AccountResponse body = objectMapper.readValue(
                 result.getResponse().getContentAsString(), AccountResponse.class);
-        assertThat(body.getAccountNumber()).isEqualTo("ACC001");
+        assertThat(body.getMaskedAccountNumber()).isEqualTo("****C001");
         assertThat(body.getBalance()).isEqualByComparingTo(new BigDecimal("1000.00"));
     }
 
@@ -120,7 +122,7 @@ class AccountControllerTest {
         request.setAccountType("CHECKING");
         request.setCurrency("USD");
 
-        var response = new AccountResponse(1L, "ACC001", new BigDecimal("2000.00"), 1L, "CHECKING", "USD");
+        var response = new AccountResponse(1L, "****C001", new BigDecimal("2000.00"), 1L, "CHECKING", "USD");
         given(accountService.update(eq(1L), any(AccountRequest.class))).willReturn(response);
 
         var result = mockMvcTester.put()
@@ -162,8 +164,8 @@ class AccountControllerTest {
     @Test
     void shouldReturnAccountsByCustomerId() throws Exception {
         var accounts = List.of(
-                new AccountResponse(1L, "ACC001", new BigDecimal("1000.00"), 1L, "SAVINGS", "USD"),
-                new AccountResponse(2L, "ACC002", new BigDecimal("500.00"), 1L, "CHECKING", "USD")
+                new AccountSummaryResponse(1L, "****C001", "SAVINGS", "USD"),
+                new AccountSummaryResponse(2L, "****C002", "CHECKING", "USD")
         );
         given(accountService.findByCustomerId(1L)).willReturn(accounts);
 
@@ -174,10 +176,12 @@ class AccountControllerTest {
         result.assertThat()
                 .matches(status().isOk());
 
-        AccountResponse[] responses = objectMapper.readValue(
-                result.getResponse().getContentAsString(), AccountResponse[].class);
+        AccountSummaryResponse[] responses = objectMapper.readValue(
+                result.getResponse().getContentAsString(), AccountSummaryResponse[].class);
         assertThat(responses).hasSize(2);
-        assertThat(responses[0].getAccountNumber()).isEqualTo("ACC001");
-        assertThat(responses[1].getAccountNumber()).isEqualTo("ACC002");
+        assertThat(responses[0].getMaskedAccountNumber()).isEqualTo("****C001");
+        assertThat(responses[1].getMaskedAccountNumber()).isEqualTo("****C002");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"balance\"");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"customerId\"");
     }
 }
