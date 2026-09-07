@@ -120,7 +120,7 @@ jobs:
           exit 1
 
       - name: Install Newman and HTML reporter
-        run: npm install --no-save --no-package-lock newman@6 newman-reporter-html
+        run: npm install --no-save --no-package-lock newman@4 newman-reporter-html
 
       - name: Replay the DAST collection with Newman
         working-directory: digibank-parent
