@@ -2,6 +2,7 @@ package com.digibank.transaction.service;
 
 import com.digibank.account.model.Account;
 import com.digibank.account.repository.AccountRepository;
+import com.digibank.account.service.AccountService;
 import com.digibank.transaction.dto.TransactionRequest;
 import com.digibank.transaction.dto.TransactionResponse;
 import com.digibank.transaction.model.Transaction;
@@ -22,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +35,9 @@ class TransactionServiceTest {
 
     @Mock
     private AccountRepository accountRepository;
+
+    @Mock
+    private AccountService accountService;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -49,6 +55,15 @@ class TransactionServiceTest {
         return transaction;
     }
 
+    private TransactionRequest request(Long accountId, BigDecimal amount, String transactionType) {
+        var request = new TransactionRequest();
+        request.setAccountId(accountId);
+        request.setAmount(amount);
+        request.setTransactionType(transactionType);
+        request.setDescription("Test transaction");
+        return request;
+    }
+
     @Test
     void shouldCreateDepositAndUpdateBalance() {
         var request = new TransactionRequest();
@@ -61,14 +76,19 @@ class TransactionServiceTest {
         var savedTransaction = transactionWithId(1L, 1L, new BigDecimal("50.00"), "DEPOSIT", "Salary");
 
         given(accountRepository.findById(1L)).willReturn(Optional.of(account));
-        given(accountRepository.save(any(Account.class))).willAnswer(invocation -> invocation.getArgument(0));
+        doAnswer(invocation -> {
+            var accountToCredit = invocation.getArgument(0, Account.class);
+            var amountToCredit = invocation.getArgument(1, BigDecimal.class);
+            accountToCredit.setBalance(accountToCredit.getBalance().add(amountToCredit));
+            return null;
+        }).when(accountService).creditAccount(any(Account.class), any(BigDecimal.class));
         given(transactionRepository.save(any(Transaction.class))).willReturn(savedTransaction);
 
         TransactionResponse response = transactionService.create(request);
 
         assertThat(response.getId()).isEqualTo(1L);
         assertThat(account.getBalance()).isEqualByComparingTo("150.00");
-        then(accountRepository).should().save(any(Account.class));
+        then(accountService).should().creditAccount(account, new BigDecimal("50.00"));
         then(transactionRepository).should().save(any(Transaction.class));
     }
 
@@ -82,12 +102,71 @@ class TransactionServiceTest {
 
         var account = accountWithId(1L, new BigDecimal("50.00"));
         given(accountRepository.findById(1L)).willReturn(Optional.of(account));
+        doThrow(new IllegalArgumentException("Transaction could not be processed"))
+                .when(accountService).debitAccount(account, new BigDecimal("100.00"));
 
         assertThatThrownBy(() -> transactionService.create(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Insufficient balance");
+                .hasMessageContaining("Transaction could not be processed");
 
         assertThat(account.getBalance()).isEqualByComparingTo("50.00");
+        then(accountService).should().debitAccount(account, new BigDecimal("100.00"));
+        then(transactionRepository).should(never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldRejectNullAccountIdBeforeMutation() {
+        var request = request(null, new BigDecimal("10.00"), "DEPOSIT");
+
+        assertThatThrownBy(() -> transactionService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Account ID is required");
+
+        then(accountRepository).should(never()).findById(any());
+        then(accountService).should(never()).creditAccount(any(Account.class), any(BigDecimal.class));
+        then(accountService).should(never()).debitAccount(any(Account.class), any(BigDecimal.class));
+        then(transactionRepository).should(never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldRejectZeroAmountBeforeMutation() {
+        var request = request(1L, BigDecimal.ZERO, "DEPOSIT");
+
+        assertThatThrownBy(() -> transactionService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Amount must be positive");
+
+        then(accountRepository).should(never()).findById(any());
+        then(accountService).should(never()).creditAccount(any(Account.class), any(BigDecimal.class));
+        then(accountService).should(never()).debitAccount(any(Account.class), any(BigDecimal.class));
+        then(transactionRepository).should(never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldRejectNegativeAmountBeforeMutation() {
+        var request = request(1L, new BigDecimal("-10.00"), "WITHDRAWAL");
+
+        assertThatThrownBy(() -> transactionService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Amount must be positive");
+
+        then(accountRepository).should(never()).findById(any());
+        then(accountService).should(never()).creditAccount(any(Account.class), any(BigDecimal.class));
+        then(accountService).should(never()).debitAccount(any(Account.class), any(BigDecimal.class));
+        then(transactionRepository).should(never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldRejectUnsupportedTypeBeforeBalanceMutation() {
+        var request = request(1L, new BigDecimal("10.00"), "REVERSAL");
+
+        assertThatThrownBy(() -> transactionService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported transaction type");
+
+        then(accountRepository).should(never()).findById(any());
+        then(accountService).should(never()).creditAccount(any(Account.class), any(BigDecimal.class));
+        then(accountService).should(never()).debitAccount(any(Account.class), any(BigDecimal.class));
         then(transactionRepository).should(never()).save(any(Transaction.class));
     }
 
