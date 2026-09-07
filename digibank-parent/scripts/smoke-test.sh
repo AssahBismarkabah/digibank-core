@@ -46,8 +46,9 @@ extract_id() {
 }
 
 # --- fresh database ---------------------------------------------------------
-# Restart the app container so Hibernate ddl-auto:create gives us clean tables.
-# This makes the smoke test idempotent -- safe to run multiple times.
+# Restart the app container so Flyway applies migrations to a persistent
+# database. The smoke test creates and deletes its own uniquely-named records,
+# so it remains idempotent and safe to run multiple times.
 APP_CONTAINER=""
 if command -v docker &>/dev/null; then
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^digibank-app$'; then

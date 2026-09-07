@@ -1,0 +1,76 @@
+= Digi Bank Application - Versioned Database Schema
+
+This module manages the Digi Bank database schema and seed data with
+link:https://flywaydb.org/[Flyway], so that dynamic tests (smoke tests and DAST)
+run against a reproducible, versioned database.
+
+== Why
+
+The DAST guide (`docs/06-devsecops-practices.adoc`, sections 2.6-2.8 and 2.10)
+requires a reproducible database with a versioned schema and seed data so that
+dynamic tests are stable and repeatable.
+
+Previously the application relied on:
+
+* `spring.jpa.hibernate.ddl-auto: create` - Hibernate dropped and recreated the
+  schema on every startup
+* `spring.sql.init` + `data.sql` - unversioned seed data loaded on every run
+
+This made startup non-deterministic: the schema came from the entities instead
+of a migration history, and there was no audit trail of schema changes.
+
+== What was done
+
+* Introduced Flyway via the Spring Boot 4 starter (`spring-boot-starter-flyway`)
+  plus the PostgreSQL database module (`flyway-database-postgresql`).
+  In Spring Boot 4.x the Flyway auto-configuration is only activated by the
+  dedicated starter, not by `flyway-core` alone.
+* Added versioned migration scripts (see below).
+* Changed `application.yml`:
+  - `ddl-auto: create` -> `ddl-auto: validate` (Flyway owns the schema;
+    Hibernate only verifies it matches the entities)
+  - Removed `spring.sql.init` and `defer-datasource-initialization`
+  - Enabled Flyway on `classpath:db/migration`
+* Removed the superseded `data.sql` (its content lives in `V2__insert_seed_data.sql`).
+* Tests keep their ephemeral H2 in-memory database (`create-drop`) and disable
+  Flyway (`spring.flyway.enabled: false`); they are unaffected by migrations.
+
+== Migration scripts
+
+All scripts live under `src/main/resources/db/migration/`:
+
+* `V1__create_schema.sql` - creates the `customers`, `accounts`,
+  `transactions` and `compliance_checks` tables. The column types and
+  constraints mirror the JPA entities so that `validate` succeeds.
+* `V2__insert_seed_data.sql` - inserts a stable demonstration dataset
+  (one customer, two accounts, two transactions, one compliance check). Ids are
+  explicit so cross-table references stay stable across environments and runs.
+  Sequences are realigned to allow the application to insert new rows
+  without colliding.
+
+== Runtime behavior
+
+On every startup Flyway checks the `flyway_schema_history` table:
+
+* a fresh database gets the full migration history applied (schema + seed data)
+* an existing database stays untouched if it is up to date ("Schema ... is up
+  to date. No migration necessary.")
+
+Schema changes must be added as new versioned scripts (e.g. `V3__add_column.sql`)
+and must never be edited in place once applied. Hibernate then validates the
+resulting schema against the entities and fails fast on any mismatch.
+
+== Extending
+
+1. Add a new migration `V3__<description>.sql` under `src/main/resources/db/migration/`.
+2. Keep the SQL portable (PostgreSQL in production, H2 in tests).
+3. `make verify` - builds, starts PostgreSQL + the app, runs smoke tests.
+
+== Verification
+
+* `mvn test` - all unit, integration and BDD (Cucumber) tests pass
+* Flyway applies both migrations on a fresh PostgreSQL database
+* The application starts with `ddl-auto: validate` against the migrated schema
+* `scripts/smoke-test.sh` - 24 checks pass against the seeded data
+* Restarting the application re-applies nothing and preserves the data
+  (idempotent, deterministic startup)

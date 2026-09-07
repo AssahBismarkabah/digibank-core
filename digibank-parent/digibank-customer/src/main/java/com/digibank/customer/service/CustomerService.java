@@ -21,10 +21,13 @@ public class CustomerService {
     }
 
     public CustomerResponse create(CustomerRequest request) {
-        if (customerRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+        var firstName = normalizeName(request.getFirstName());
+        var lastName = normalizeName(request.getLastName());
+        var email = normalizeEmail(request.getEmail());
+        if (customerRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email already exists: " + email);
         }
-        var customer = new Customer(request.getFirstName(), request.getLastName(), request.getEmail());
+        var customer = new Customer(firstName, lastName, email);
         customer = customerRepository.save(customer);
         return toResponse(customer);
     }
@@ -46,9 +49,9 @@ public class CustomerService {
     public CustomerResponse update(Long id, CustomerRequest request) {
         var customer = customerRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Customer not found with id: " + id));
-        customer.setFirstName(request.getFirstName());
-        customer.setLastName(request.getLastName());
-        customer.setEmail(request.getEmail());
+        customer.setFirstName(normalizeName(request.getFirstName()));
+        customer.setLastName(normalizeName(request.getLastName()));
+        customer.setEmail(normalizeEmail(request.getEmail()));
         customer = customerRepository.save(customer);
         return toResponse(customer);
     }
@@ -63,5 +66,13 @@ public class CustomerService {
     private CustomerResponse toResponse(Customer customer) {
         return new CustomerResponse(customer.getId(), customer.getFirstName(),
                 customer.getLastName(), customer.getEmail());
+    }
+
+    private String normalizeName(String value) {
+        return value.trim().replaceAll("\\s+", " ");
+    }
+
+    private String normalizeEmail(String value) {
+        return value.trim().toLowerCase(java.util.Locale.ROOT);
     }
 }

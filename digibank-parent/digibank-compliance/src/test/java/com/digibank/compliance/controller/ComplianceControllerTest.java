@@ -2,6 +2,7 @@ package com.digibank.compliance.controller;
 
 import com.digibank.compliance.dto.ComplianceRequest;
 import com.digibank.compliance.dto.ComplianceResponse;
+import com.digibank.compliance.dto.ComplianceSummaryResponse;
 import com.digibank.compliance.service.ComplianceService;
 import com.digibank.shared.exception.GlobalExceptionHandler;
 import tools.jackson.databind.ObjectMapper;
@@ -49,8 +50,8 @@ class ComplianceControllerTest {
         result.assertThat()
                 .matches(status().isOk());
 
-        ComplianceResponse[] responses = objectMapper.readValue(
-                result.getResponse().getContentAsString(), ComplianceResponse[].class);
+        ComplianceSummaryResponse[] responses = objectMapper.readValue(
+                result.getResponse().getContentAsString(), ComplianceSummaryResponse[].class);
         assertThat(responses).isEmpty();
     }
 
@@ -63,7 +64,7 @@ class ComplianceControllerTest {
         request.setCheckedBy("officer1");
         request.setRemarks("Initial check");
 
-        var response = new ComplianceResponse(1L, 1L, "KYC", "PENDING", "officer1",
+        var response = new ComplianceResponse(1L, 1L, "KYC", "PENDING",
                 "Initial check", LocalDateTime.now());
         given(complianceService.create(any(ComplianceRequest.class))).willReturn(response);
 
@@ -80,11 +81,12 @@ class ComplianceControllerTest {
                 result.getResponse().getContentAsString(), ComplianceResponse.class);
         assertThat(body.getId()).isEqualTo(1L);
         assertThat(body.getCheckType()).isEqualTo("KYC");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"checkedBy\"");
     }
 
     @Test
     void shouldReturnComplianceCheckById() throws Exception {
-        var response = new ComplianceResponse(1L, 1L, "KYC", "PENDING", "officer1",
+        var response = new ComplianceResponse(1L, 1L, "KYC", "PENDING",
                 "Initial check", LocalDateTime.now());
         given(complianceService.findById(1L)).willReturn(response);
 
@@ -99,18 +101,25 @@ class ComplianceControllerTest {
                 result.getResponse().getContentAsString(), ComplianceResponse.class);
         assertThat(body.getCheckType()).isEqualTo("KYC");
         assertThat(body.getStatus()).isEqualTo("PENDING");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"checkedBy\"");
     }
 
     @Test
-    void shouldReturn404WhenComplianceCheckNotFound() {
+    void shouldReturn404WhenComplianceCheckNotFound() throws Exception {
         given(complianceService.findById(99L))
                 .willThrow(new EntityNotFoundException("Compliance check not found with id: 99"));
 
-        mockMvcTester.get()
+        var result = mockMvcTester.get()
                 .uri("/api/compliance/99")
-                .exchange()
-                .assertThat()
+                .exchange();
+
+        result.assertThat()
                 .matches(status().isNotFound());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Resource not found", "The requested resource does not exist");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("id: 99")
+                .doesNotContain("Compliance check not found with id");
     }
 
     @Test
@@ -122,7 +131,7 @@ class ComplianceControllerTest {
         request.setCheckedBy("officer2");
         request.setRemarks("Updated remarks");
 
-        var response = new ComplianceResponse(1L, 1L, "AML", "APPROVED", "officer2",
+        var response = new ComplianceResponse(1L, 1L, "AML", "APPROVED",
                 "Updated remarks", LocalDateTime.now());
         given(complianceService.update(eq(1L), any(ComplianceRequest.class))).willReturn(response);
 
@@ -151,22 +160,26 @@ class ComplianceControllerTest {
     }
 
     @Test
-    void shouldReturn404WhenDeletingNonExistent() {
+    void shouldReturn404WhenDeletingNonExistent() throws Exception {
         willThrow(new EntityNotFoundException("Compliance check not found with id: 99"))
                 .given(complianceService).delete(99L);
 
-        mockMvcTester.delete()
+        var result = mockMvcTester.delete()
                 .uri("/api/compliance/99")
-                .exchange()
-                .assertThat()
+                .exchange();
+
+        result.assertThat()
                 .matches(status().isNotFound());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Resource not found", "The requested resource does not exist");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("id: 99");
     }
 
     @Test
     void shouldReturnComplianceChecksByCustomerId() throws Exception {
         var checks = List.of(
-                new ComplianceResponse(1L, 1L, "KYC", "PENDING", "officer1", "Remark 1", LocalDateTime.now()),
-                new ComplianceResponse(2L, 1L, "AML", "APPROVED", "officer2", "Remark 2", LocalDateTime.now())
+                new ComplianceSummaryResponse(1L, "KYC", "PENDING", LocalDateTime.now()),
+                new ComplianceSummaryResponse(2L, "AML", "APPROVED", LocalDateTime.now())
         );
         given(complianceService.findByCustomerId(1L)).willReturn(checks);
 
@@ -177,10 +190,22 @@ class ComplianceControllerTest {
         result.assertThat()
                 .matches(status().isOk());
 
-        ComplianceResponse[] responses = objectMapper.readValue(
-                result.getResponse().getContentAsString(), ComplianceResponse[].class);
+        ComplianceSummaryResponse[] responses = objectMapper.readValue(
+                result.getResponse().getContentAsString(), ComplianceSummaryResponse[].class);
         assertThat(responses).hasSize(2);
         assertThat(responses[0].getCheckType()).isEqualTo("KYC");
         assertThat(responses[1].getCheckType()).isEqualTo("AML");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"checkedBy\"");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"remarks\"");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"customerId\"");
+    }
+
+    private void assertStandardError(String body, String message, String detail) {
+        assertThat(body)
+                .contains("\"success\":false")
+                .contains("\"message\":\"" + message + "\"")
+                .contains("\"details\":[\"" + detail + "\"]")
+                .contains("\"timestamp\":")
+                .doesNotContain("\"violations\"");
     }
 }

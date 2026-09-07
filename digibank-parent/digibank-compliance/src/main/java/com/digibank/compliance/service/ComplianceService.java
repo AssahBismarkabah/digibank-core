@@ -2,6 +2,7 @@ package com.digibank.compliance.service;
 
 import com.digibank.compliance.dto.ComplianceRequest;
 import com.digibank.compliance.dto.ComplianceResponse;
+import com.digibank.compliance.dto.ComplianceSummaryResponse;
 import com.digibank.compliance.model.ComplianceCheck;
 import com.digibank.compliance.repository.ComplianceRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -28,9 +29,9 @@ public class ComplianceService {
     }
 
     @Transactional(readOnly = true)
-    public List<ComplianceResponse> findAll() {
+    public List<ComplianceSummaryResponse> findAll() {
         return complianceRepository.findAll().stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -42,9 +43,9 @@ public class ComplianceService {
     }
 
     @Transactional(readOnly = true)
-    public List<ComplianceResponse> findByCustomerId(Long customerId) {
+    public List<ComplianceSummaryResponse> findByCustomerId(Long customerId) {
         return complianceRepository.findByCustomerId(customerId).stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -69,7 +70,12 @@ public class ComplianceService {
 
     private ComplianceResponse toResponse(ComplianceCheck check) {
         return new ComplianceResponse(check.getId(), check.getCustomerId(),
-                check.getCheckType(), check.getStatus(), check.getCheckedBy(),
-                check.getRemarks(), check.getCheckDate());
+                check.getCheckType(), check.getStatus(), check.getRemarks(),
+                check.getCheckDate());
+    }
+
+    private ComplianceSummaryResponse toSummaryResponse(ComplianceCheck check) {
+        return new ComplianceSummaryResponse(check.getId(), check.getCheckType(),
+                check.getStatus(), check.getCheckDate());
     }
 }

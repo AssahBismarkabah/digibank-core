@@ -4,6 +4,7 @@ import com.digibank.shared.exception.GlobalExceptionHandler;
 import com.digibank.transaction.TestDigiBankTransactionApplication;
 import com.digibank.transaction.dto.TransactionRequest;
 import com.digibank.transaction.dto.TransactionResponse;
+import com.digibank.transaction.dto.TransactionSummaryResponse;
 import com.digibank.transaction.service.TransactionService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,35 @@ class TransactionControllerTest {
                 .exchange();
 
         result.assertThat().matches(status().isNotFound());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Resource not found", "The requested resource does not exist");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("id: 99")
+                .doesNotContain("Transaction not found with id");
+    }
+
+    @Test
+    void shouldReturnGenericBusinessErrorWithoutRawReason() throws Exception {
+        var request = new TransactionRequest();
+        request.setAccountId(99L);
+        request.setAmount(new BigDecimal("50.00"));
+        request.setTransactionType("WITHDRAWAL");
+        request.setDescription("Salary");
+        given(transactionService.create(any(TransactionRequest.class)))
+                .willThrow(new IllegalArgumentException("Unsupported transaction type"));
+
+        var result = mockMvcTester.post()
+                .uri("/api/transactions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .exchange();
+
+        result.assertThat().matches(status().isBadRequest());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Request could not be processed", "Business rule validation failed");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("accountId")
+                .doesNotContain("Unsupported transaction type");
     }
 
     @Test
@@ -135,7 +165,7 @@ class TransactionControllerTest {
 
     @Test
     void shouldFindTransactionsByAccount() throws Exception {
-        var response = new TransactionResponse(1L, 10L, new BigDecimal("50.00"),
+        var response = new TransactionSummaryResponse(1L, new BigDecimal("50.00"),
                 "DEPOSIT", "Salary", "ref-1", LocalDateTime.now());
         given(transactionService.findByAccountId(10L)).willReturn(List.of(response));
 
@@ -144,6 +174,16 @@ class TransactionControllerTest {
                 .exchange();
 
         result.assertThat().matches(status().isOk());
-        assertThat(result.getResponse().getContentAsString()).contains("\"accountId\":10");
+        assertThat(result.getResponse().getContentAsString()).contains("\"description\":\"Salary\"");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"accountId\"");
+    }
+
+    private void assertStandardError(String body, String message, String detail) {
+        assertThat(body)
+                .contains("\"success\":false")
+                .contains("\"message\":\"" + message + "\"")
+                .contains("\"details\":[\"" + detail + "\"]")
+                .contains("\"timestamp\":")
+                .doesNotContain("\"violations\"");
     }
 }
