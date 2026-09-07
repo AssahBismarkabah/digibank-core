@@ -20,6 +20,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -68,8 +71,42 @@ class CustomerControllerTest {
 
         mockMvc.perform(get("/api/customers/99"))
                 .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Resource not found"))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("99"))));
+                .andExpect(jsonPath("$.details[0]").value("The requested resource does not exist"))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(content().string(not(containsString("id: 99"))))
+                .andExpect(content().string(not(containsString("Customer not found with id"))));
+    }
+
+    @Test
+    void shouldReturnGenericBusinessErrorWithoutSubmittedValue() throws Exception {
+        var request = new CustomerRequest("John", "Doe", "john@example.com");
+        given(customerService.create(any(CustomerRequest.class)))
+                .willThrow(new IllegalArgumentException("Email already exists: john@example.com"));
+
+        mockMvc.perform(post("/api/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Request could not be processed"))
+                .andExpect(jsonPath("$.details[0]").value("Business rule validation failed"))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(content().string(not(containsString("john@example.com"))))
+                .andExpect(content().string(not(containsString("Email already exists"))));
+    }
+
+    @Test
+    void shouldReturnGenericValidationErrorForInvalidPathVariable() throws Exception {
+        mockMvc.perform(get("/api/customers/not-a-number"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Input validation failed"))
+                .andExpect(jsonPath("$.details[0]").value("One or more request parameters are invalid"))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(content().string(not(containsString("not-a-number"))))
+                .andExpect(content().string(not(containsString("MethodArgumentTypeMismatchException"))));
     }
 
     @Test
@@ -93,7 +130,16 @@ class CustomerControllerTest {
         mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Input validation failed"))
+                .andExpect(jsonPath("$.details", hasItem("Invalid field: firstName")))
+                .andExpect(jsonPath("$.details", hasItem("Invalid field: lastName")))
+                .andExpect(jsonPath("$.details", hasItem("Invalid field: email")))
+                .andExpect(jsonPath("$.violations").doesNotExist())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(content().string(not(containsString("invalid-email"))))
+                .andExpect(content().string(not(containsString("Email must be a valid format"))));
     }
 
     @Test
@@ -121,6 +167,11 @@ class CustomerControllerTest {
                 .given(customerService).delete(99L);
 
         mockMvc.perform(delete("/api/customers/99"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Resource not found"))
+                .andExpect(jsonPath("$.details[0]").value("The requested resource does not exist"))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(content().string(not(containsString("id: 99"))));
     }
 }

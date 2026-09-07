@@ -102,15 +102,47 @@ class AccountControllerTest {
     }
 
     @Test
-    void shouldReturn404WhenAccountNotFound() {
+    void shouldReturn404WhenAccountNotFound() throws Exception {
         given(accountService.findById(99L))
                 .willThrow(new EntityNotFoundException("Account not found with id: 99"));
 
-        mockMvcTester.get()
+        var result = mockMvcTester.get()
                 .uri("/api/accounts/99")
-                .exchange()
-                .assertThat()
+                .exchange();
+
+        result.assertThat()
                 .matches(status().isNotFound());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Resource not found", "The requested resource does not exist");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("id: 99")
+                .doesNotContain("Account not found with id");
+    }
+
+    @Test
+    void shouldReturnGenericBusinessErrorWithoutSubmittedValue() throws Exception {
+        var request = new AccountRequest();
+        request.setAccountNumber("ACC001");
+        request.setBalance(new BigDecimal("1000.00"));
+        request.setCustomerId(1L);
+        request.setAccountType("SAVINGS");
+        request.setCurrency("USD");
+        given(accountService.create(any(AccountRequest.class)))
+                .willThrow(new IllegalArgumentException("Account number already exists: ACC001"));
+
+        var result = mockMvcTester.post()
+                .uri("/api/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .exchange();
+
+        result.assertThat()
+                .matches(status().isBadRequest());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Request could not be processed", "Business rule validation failed");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("ACC001")
+                .doesNotContain("Account number already exists");
     }
 
     @Test
@@ -150,15 +182,19 @@ class AccountControllerTest {
     }
 
     @Test
-    void shouldReturn404WhenDeletingNonExistent() {
+    void shouldReturn404WhenDeletingNonExistent() throws Exception {
         willThrow(new EntityNotFoundException("Account not found with id: 99"))
                 .given(accountService).delete(99L);
 
-        mockMvcTester.delete()
+        var result = mockMvcTester.delete()
                 .uri("/api/accounts/99")
-                .exchange()
-                .assertThat()
+                .exchange();
+
+        result.assertThat()
                 .matches(status().isNotFound());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Resource not found", "The requested resource does not exist");
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("id: 99");
     }
 
     @Test
@@ -183,5 +219,14 @@ class AccountControllerTest {
         assertThat(responses[1].getMaskedAccountNumber()).isEqualTo("****C002");
         assertThat(result.getResponse().getContentAsString()).doesNotContain("\"balance\"");
         assertThat(result.getResponse().getContentAsString()).doesNotContain("\"customerId\"");
+    }
+
+    private void assertStandardError(String body, String message, String detail) {
+        assertThat(body)
+                .contains("\"success\":false")
+                .contains("\"message\":\"" + message + "\"")
+                .contains("\"details\":[\"" + detail + "\"]")
+                .contains("\"timestamp\":")
+                .doesNotContain("\"violations\"");
     }
 }
