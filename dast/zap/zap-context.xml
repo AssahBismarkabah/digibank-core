@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DigiBank - OWASP ZAP Context File
+
+  This context tells ZAP the target scope for the DigiBank DAST campaign.
+
+  Key points:
+  - Target URL  : http://digibank-app:8080  (Docker internal; overridden by
+                  the local script to http://localhost:8080 via -t flag)
+  - In scope    : /api/*  /  /swagger-ui* (REST endpoints + Swagger UI)
+  - Out of scope: Swagger static JS/CSS bundles and actuator endpoints
+  - Technology  : Spring Boot (Java), PostgreSQL
+
+  Update this file if new top-level API prefixes are added to DigiBank.
+-->
+<context>
+  <name>DigiBank</name>
+  <desc>DAST context for the DigiBank REST API and index page</desc>
+  <inscope>true</inscope>
+
+  <incregexes>
+    <pattern>http://digibank-app:8080.*</pattern>
+    <pattern>http://localhost:8080.*</pattern>
+    <pattern>http://127\.0\.0\.1:8080.*</pattern>
+  </incregexes>
+
+  <!--
+    Excluded URL patterns: noisy or irrelevant for baseline.
+    - Swagger static assets are not REST endpoints.
+    - Spring Boot actuator is a separate concern.
+  -->
+  <excregexes>
+    <pattern>http://[^/]*/webjars/.*</pattern>
+    <pattern>http://[^/]*/swagger-ui/swagger-ui-bundle.*</pattern>
+    <pattern>http://[^/]*/swagger-ui/swagger-ui-standalone-preset.*</pattern>
+    <pattern>http://[^/]*/swagger-ui/swagger-initializer.*</pattern>
+    <pattern>http://[^/]*/swagger-ui/index\.css</pattern>
+    <pattern>http://[^/]*/swagger-ui/favicon.*</pattern>
+    <pattern>http://[^/]*/actuator/.*</pattern>
+  </excregexes>
+
+  <technology>
+    <name>Java</name>
+    <enabled>true</enabled>
+  </technology>
+  <technology>
+    <name>Spring</name>
+    <enabled>true</enabled>
+  </technology>
+  <technology>
+    <name>PostgreSQL</name>
+    <enabled>true</enabled>
+  </technology>
+
+  <!--
+    Authentication: DigiBank dev has no auth layer yet.
+    Update this section when the authentication hardening ticket is merged.
+  -->
+
+</context>
