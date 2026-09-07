@@ -131,7 +131,11 @@ jobs:
             --reporters cli,json,html \
             --reporter-json-export ../dast/reports/newman-report.json \
             --reporter-html-export ../dast/reports/newman-report.html \
-            --bail || true   # informational – don't block CI before hardening
+            --bail
+
+      - name: Verify Newman reports exist
+        if: always()
+        run: test -s dast/reports/newman-report.json && test -s dast/reports/newman-report.html
 
       - name: Upload Newman reports
         if: always()
@@ -141,7 +145,7 @@ jobs:
           path: |
             dast/reports/newman-report.json
             dast/reports/newman-report.html
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Clean up compose resources
         if: always()
@@ -201,6 +205,13 @@ jobs:
           # report filenames (report_html.html, report_json.json, report_md.md)
           # which the upload step below expects.
 
+      - name: Verify ZAP reports exist
+        if: always()
+        run: |
+          test -s report_html.html
+          test -s report_json.json
+          test -s report_md.md
+
       - name: Upload ZAP reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -210,7 +221,7 @@ jobs:
             report_html.html
             report_json.json
             report_md.md
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Clean up compose resources
         if: always()
