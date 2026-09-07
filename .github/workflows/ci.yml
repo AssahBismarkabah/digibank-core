@@ -128,12 +128,15 @@ jobs:
         # flip to blocking by removing `--informational` afterwards.
         run: ../dast/postman/newman-run.sh --env local --informational
 
-      - name: Verify Newman reports exist
+      - name: Verify Newman JSON report exists
         if: always()
         working-directory: digibank-parent
+        # The JSON report is always produced by the runner. The HTML report is
+        # optional (the runner degrades to CLI+JSON when the HTML reporter is
+        # unavailable), so only the JSON is strictly required here.
         run: |
+          test -f ../dast/reports/latest/newman-report.json
           test -s ../dast/reports/latest/newman-report.json
-          test -s ../dast/reports/latest/newman-report.html
 
       - name: Upload Newman reports
         if: always()
