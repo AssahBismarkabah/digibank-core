@@ -101,6 +101,35 @@ class TransactionControllerTest {
                 .exchange();
 
         result.assertThat().matches(status().isNotFound());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Resource not found", "The requested resource does not exist");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("id: 99")
+                .doesNotContain("Transaction not found with id");
+    }
+
+    @Test
+    void shouldReturnGenericBusinessErrorWithoutRawReason() throws Exception {
+        var request = new TransactionRequest();
+        request.setAccountId(99L);
+        request.setAmount(new BigDecimal("50.00"));
+        request.setTransactionType("WITHDRAWAL");
+        request.setDescription("Salary");
+        given(transactionService.create(any(TransactionRequest.class)))
+                .willThrow(new IllegalArgumentException("Unsupported transaction type"));
+
+        var result = mockMvcTester.post()
+                .uri("/api/transactions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .exchange();
+
+        result.assertThat().matches(status().isBadRequest());
+        assertStandardError(result.getResponse().getContentAsString(),
+                "Request could not be processed", "Business rule validation failed");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("accountId")
+                .doesNotContain("Unsupported transaction type");
     }
 
     @Test
@@ -147,5 +176,14 @@ class TransactionControllerTest {
         result.assertThat().matches(status().isOk());
         assertThat(result.getResponse().getContentAsString()).contains("\"description\":\"Salary\"");
         assertThat(result.getResponse().getContentAsString()).doesNotContain("\"accountId\"");
+    }
+
+    private void assertStandardError(String body, String message, String detail) {
+        assertThat(body)
+                .contains("\"success\":false")
+                .contains("\"message\":\"" + message + "\"")
+                .contains("\"details\":[\"" + detail + "\"]")
+                .contains("\"timestamp\":")
+                .doesNotContain("\"violations\"");
     }
 }
