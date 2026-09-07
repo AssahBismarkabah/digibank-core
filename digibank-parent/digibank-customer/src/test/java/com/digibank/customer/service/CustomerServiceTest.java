@@ -52,6 +52,23 @@ class CustomerServiceTest {
     }
 
     @Test
+    void shouldNormalizeNamesAndEmailBeforePersistence() {
+        var request = new CustomerRequest("  John   Doe ", " Smith ", " JOHN@EXAMPLE.COM ");
+        given(customerRepository.existsByEmail("john@example.com")).willReturn(false);
+        given(customerRepository.save(any(Customer.class))).willAnswer(invocation -> {
+            var saved = invocation.getArgument(0, Customer.class);
+            saved.setId(1L);
+            return saved;
+        });
+
+        var response = customerService.create(request);
+
+        assertThat(response.getFirstName()).isEqualTo("John Doe");
+        assertThat(response.getLastName()).isEqualTo("Smith");
+        assertThat(response.getEmail()).isEqualTo("john@example.com");
+    }
+
+    @Test
     void shouldRejectDuplicateEmail() {
         var request = new CustomerRequest("John", "Doe", "existing@example.com");
         given(customerRepository.existsByEmail("existing@example.com")).willReturn(true);
