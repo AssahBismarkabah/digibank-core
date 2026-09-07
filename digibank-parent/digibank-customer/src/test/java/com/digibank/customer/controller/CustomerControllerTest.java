@@ -67,7 +67,9 @@ class CustomerControllerTest {
                 .willThrow(new EntityNotFoundException("Customer not found with id: 99"));
 
         mockMvc.perform(get("/api/customers/99"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Resource not found"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("99"))));
     }
 
     @Test
