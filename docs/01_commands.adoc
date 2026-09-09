@@ -1,0 +1,79 @@
+= Digi Bank Commands
+
+Use these commands from the `digibank-parent/` directory.
+
+== Build And Test
+
+[source,shell]
+----
+cd digibank-parent
+
+make build       # Compile, test, and package the project
+make test        # Run the Maven test suite
+make clean       # Remove Maven build artifacts
+----
+
+== Run Locally With Embedded Tomcat
+
+[source,shell]
+----
+cd digibank-parent
+
+make up          # Start PostgreSQL and Spring Boot
+make smoke-test  # Run the smoke tests
+make down        # Stop the containers
+----
+
+The application is available at `http://localhost:8080/`.
+
+== Run With WildFly
+
+[source,shell]
+----
+cd digibank-parent
+
+make up-wildfly  # Start PostgreSQL and deploy the WAR to WildFly
+make smoke-test  # Run the smoke tests
+make down        # Stop the containers
+----
+
+The application is available at `http://localhost:8080/digibank-app/`.
+
+== Full Verification
+
+This command builds the project, starts the development stack, runs the smoke
+tests, and stops the containers:
+
+[source,shell]
+----
+cd digibank-parent
+make verify
+----
+
+== Container And Log Commands
+
+[source,shell]
+----
+cd digibank-parent
+
+make up-foreground  # Start development mode and show logs
+make logs           # Follow all container logs
+make logs-app       # Follow application logs
+make logs-db        # Follow PostgreSQL logs
+make down-volumes   # Stop containers and remove the database volume
+----
+
+Use `make down-volumes` when a clean database is required. It deletes the
+local PostgreSQL volume and all seeded data.
+
+== Security Validation
+
+[source,shell]
+----
+cd digibank-parent
+
+make zap-scan       # Run the OWASP ZAP baseline scan
+make zap-report     # Open the latest ZAP report
+----
+
+Run `make help` to display all available Makefile targets.

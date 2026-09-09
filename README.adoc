@@ -26,60 +26,11 @@ tests, then shuts everything down. Requires Docker.
 
 For step-by-step instructions, see the link:docs/00_getting_started.adoc[Getting Started guide].
 
-== Make Commands
-
-All commands run from the `digibank-parent/` directory:
-
-[cols="25,75"]
-|===
-| Command | Description
-
-| `make verify`
-| Full pipeline: build, start, smoke-test, stop
-
-| `make up`
-| Start PostgreSQL + Spring Boot (embedded Tomcat, dev mode)
-
-| `make up-wildfly`
-| Start PostgreSQL + WildFly (production mode)
-
-| `make down`
-| Stop all containers
-
-| `make test`
-| Run all unit and integration tests
-
-| `make smoke-test`
-| Run smoke tests against a running instance
-
-| `make newman-scan`
-| Replay the DAST Postman collection with Newman against a running instance
-
-| `make logs`
-| Tail logs from all containers
-
-| `make build`
-| Compile, test, and package the project
-
-| `make clean`
-| Remove all build artifacts
-
-| `make help`
-| Show all available targets
-|===
-
 == Documentation
 
-* link:docs/00_getting_started.adoc[Getting Started] -- prerequisites, deployment, troubleshooting
-* link:docs/05_modernizations.adoc[Modernizations] -- improvements over the Jakarta EE implementation
-
-== Tech Stack
-
-* Java 21+
-* Spring Boot 4.x (Web, Data JPA, Validation)
-* Spring Data JPA / Hibernate 6
-* PostgreSQL 16
-* Apache Maven 3.9+
+* link:docs/00_getting_started.adoc[Getting Started]  prerequisites, deployment, troubleshooting
+* link:docs/01_commands.adoc[Commands] build, test, deployment, smoke-test, and security commands
+* link:docs/05_modernizations.adoc[Modernizations]  improvements over the Jakarta EE implementation
 
 == Project Status
 

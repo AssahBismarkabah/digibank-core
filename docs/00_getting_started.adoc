@@ -2,6 +2,15 @@
 
 == Prerequisites
 
+=== Technology Stack
+
+* Java 21+
+* Spring Boot 4.x (Web, Data JPA, Validation)
+* Spring Data JPA / Hibernate
+* PostgreSQL 16
+* Apache Maven 3.9+
+* Docker and Docker Compose
+
 === Docker
 
 Docker is required to run PostgreSQL and the application containers.
@@ -64,25 +73,8 @@ make smoke-test
 
 The application is accessible at http://localhost:8080/digibank-app/.
 
-== Available Makefile Commands
-
-A `Makefile` is provided inside `digibank-parent/` for common tasks (run all
-commands from the `digibank-parent` directory):
-
-[source,shell]
-----
-make build          # Build the project (compile, test, package)
-make up             # Start dev mode (embedded Tomcat + PostgreSQL)
-make up-wildfly     # Start production mode (WildFly + PostgreSQL)
-make up-foreground  # Start dev mode in foreground (see logs)
-make down           # Stop all containers
-make down-volumes   # Stop all containers and remove volumes (wipes DB)
-make logs           # Tail logs from all containers
-make test           # Run all tests
-make smoke-test     # Run smoke tests against a running instance
-make verify         # Full verification: build + up + smoke-test + down
-make clean          # Clean all build artifacts
-----
+For the complete command reference, see the link:01_commands.adoc[Commands
+guide].
 
 == API Endpoints
 
