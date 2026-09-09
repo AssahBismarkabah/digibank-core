@@ -1,0 +1,34 @@
+@startuml Digi Bank - Spring Modular Monolith
+
+left to right direction
+skinparam componentStyle uml2
+skinparam backgroundColor #FEFEFE
+skinparam packageStyle rectangle
+
+title Digi Bank\nSpring Boot Modular Monolith\nOne deployable application with explicit module boundaries
+
+actor "Clients\n(customer, partner, admin)" as clients
+
+rectangle "Spring Boot application" as app {
+    interface "REST API" as api
+
+    package "Business modules" as modules {
+        artifact "Shared\nsecurity, errors, base model" as shared
+        artifact "Customer" as customer
+        artifact "Account" as account
+        artifact "Transaction" as transaction
+        artifact "Compliance" as compliance
+        artifact "Index / UI" as index
+    }
+
+    artifact "Flyway\nV1 baseline + V2 seed" as flyway
+}
+
+database "PostgreSQL" as postgres
+
+clients --> api: HTTPS
+api --> modules: invokes
+app --> postgres: JDBC / JPA
+flyway --> postgres: versioned schema
+
+@enduml

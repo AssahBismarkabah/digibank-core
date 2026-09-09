@@ -1,0 +1,37 @@
+@startuml Digi Bank - Dual Deployment Strategy
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FEFEFE
+
+title Digi Bank\nDual Deployment Strategy
+
+artifact "One versioned WAR\nDigiBankApplication" as war
+artifact "Shared business modules\nCustomer, Account, Transaction, Compliance" as code
+database "PostgreSQL" as postgres
+
+node "Development profile" as dev {
+    artifact "Spring Boot launcher" as launcher
+    node "Embedded Tomcat" as tomcat
+    artifact "Fast local feedback\nOpenAPI enabled" as local
+    launcher --> tomcat
+    tomcat --> local
+}
+
+node "WildFly profile" as prod {
+    node "WildFly" as wildfly
+    artifact "Production-like WAR\ncontainer deployment" as deployed
+    wildfly --> deployed
+}
+
+war --> code: packages
+war --> launcher: java -jar
+war --> wildfly: deploy as WAR
+local --> postgres: JDBC
+deployed --> postgres: JDBC
+
+note bottom of war
+  Same artifact and business code in both paths.
+  Runtime choice changes; functional behavior does not.
+end note
+
+@enduml

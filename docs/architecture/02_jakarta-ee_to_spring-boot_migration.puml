@@ -1,0 +1,49 @@
+@startuml Digi Bank - Jakarta EE to Spring Boot Migration
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FEFEFE
+
+title Digi Bank\nJakarta EE to Spring Boot Migration
+
+node "Jakarta EE implementation\n(legacy reference)" as jee {
+    artifact "Jakarta REST / CDI" as jaxrs
+    artifact "JPA / EntityManager" as jeeJpa
+    artifact "WildFly runtime" as wildflyOld
+    artifact "Java 17 baseline" as java17
+}
+
+node "Migration drivers" as decision {
+    artifact "Preserve domain scope\nand module boundaries" as preserve
+    artifact "Reduce configuration\nand environment dependency" as simplify
+    artifact "Improve feedback\nand test automation" as testability
+    artifact "Enable application-owned runtime\nwhile retaining WAR/WildFly" as compatibility
+}
+
+node "Spring Boot implementation\n(current main)" as sb {
+    artifact "Spring Web / MVC" as web
+    artifact "Spring Data JPA" as springJpa
+    artifact "Embedded Tomcat\nfor development" as tomcat
+    artifact "SpringBootServletInitializer\nfor WAR deployment" as initializer
+    artifact "Java 21 baseline" as java21
+}
+
+jee --> decision: baseline and lessons
+decision --> sb: controlled re-platforming
+
+jaxrs --> web: REST contract retained
+jeeJpa --> springJpa: persistence model retained
+wildflyOld --> initializer: production option retained
+java17 --> java21: supported baseline uplift
+
+note right of decision
+  The decision is operational, not ideological:
+  reduce the distance between source code,
+  local runtime, CI validation, and deployment.
+end note
+
+note bottom of sb
+  Delivered outcome: same modular-monolith shape,
+  more accessible runtime and test workflow.
+end note
+
+@enduml

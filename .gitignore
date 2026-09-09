@@ -8,6 +8,7 @@
 .factorypath
 .settings/
 .apt_generated/
+.codex-output/
 
 # OS
 .DS_Store

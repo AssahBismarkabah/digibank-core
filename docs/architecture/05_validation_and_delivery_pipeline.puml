@@ -1,0 +1,55 @@
+@startuml Digi Bank - Validation and Delivery Pipeline
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FEFEFE
+
+title Digi Bank\nValidation and Delivery Pipeline
+
+actor Developer
+actor Reviewer
+
+node "Commit / pull request" as change
+node "Build and test" as build {
+    artifact "mvn clean verify" as mvn
+    artifact "Unit + controller + Cucumber\ntests" as tests
+    artifact "Application context smoke" as context
+    mvn --> tests
+    mvn --> context
+}
+
+node "Runtime validation" as runtime {
+    artifact "Compose dev\nembedded Tomcat" as dev
+    artifact "Compose wildfly\nWAR deployment" as wf
+    artifact "Smoke test script" as smoke
+    dev --> smoke
+    wf --> smoke
+}
+
+node "Security validation" as security {
+    artifact "Newman DAST collection" as newman
+    artifact "OWASP ZAP baseline" as zap
+    artifact "Reports uploaded\nas CI artifacts" as reports
+    newman --> reports
+    zap --> reports
+}
+
+artifact "Status / review evidence" as result
+
+Developer --> change
+Reviewer --> change
+change --> mvn
+tests --> runtime
+context --> runtime
+runtime --> newman
+newman --> zap
+reports --> result
+smoke --> result
+
+note right of result
+  Main currently validates:
+  build correctness, context startup,
+  both runtime profiles, API smoke behavior,
+  and baseline DAST evidence.
+end note
+
+@enduml

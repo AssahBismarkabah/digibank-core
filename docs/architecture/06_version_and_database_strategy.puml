@@ -1,0 +1,36 @@
+@startuml Digi Bank - Version and Database Strategy
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FEFEFE
+
+title Digi Bank\nVersion and Database Strategy
+
+artifact "Java 21\nLTS runtime" as java
+artifact "Spring Boot 4.1.0\nmanaged dependencies" as boot
+artifact "Maven project\nversion 1.0.0" as maven
+artifact "digibank-app.war\nversioned deployable" as war
+
+database "PostgreSQL 16" as postgres
+artifact "Flyway V1\nbaseline schema" as v1
+artifact "Flyway V2\nseed data" as v2
+artifact "Hibernate\nddl-auto: validate" as validate
+
+java --> boot: runtime baseline
+boot --> maven: dependency management
+maven --> war: packages
+war --> postgres: connects
+v1 --> postgres: applies first
+v2 --> postgres: applies next
+validate --> postgres: verifies mapping
+
+note right of war
+  Application release and database evolution
+  are explicit, ordered, and reviewable.
+end note
+
+note bottom of postgres
+  Flyway changes the schema.
+  Hibernate validates the resulting schema.
+end note
+
+@enduml

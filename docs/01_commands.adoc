@@ -50,6 +50,19 @@ cd digibank-parent
 make verify
 ----
 
+== Verify Database Migrations
+
+With either application profile running, verify the applied Flyway migrations
+and seeded customer data:
+
+[source,shell]
+----
+cd digibank-parent
+make db-verify
+----
+
+Every migration should report `success = t`.
+
 == Container And Log Commands
 
 [source,shell]

@@ -3,7 +3,7 @@
 # Makefile for building, deploying, and testing via Docker Compose
 # =============================================================================
 
-.PHONY: build build-skip-tests up up-wildfly up-foreground down down-volumes logs logs-app logs-db test smoke-test verify zap-scan zap-report newman-scan clean help
+.PHONY: build build-skip-tests up up-wildfly up-foreground down down-volumes logs logs-app logs-db test smoke-test db-verify verify zap-scan zap-report newman-scan clean help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -44,6 +44,10 @@ test: ## Run all tests
 
 smoke-test: ## Run smoke tests against a running instance
 	scripts/smoke-test.sh
+
+db-verify: ## Verify Flyway migrations and seeded database data
+	docker compose exec postgres psql -U digibank_user -d digibank_db -c "SELECT installed_rank, version, description, success FROM flyway_schema_history ORDER BY installed_rank;"
+	docker compose exec postgres psql -U digibank_user -d digibank_db -c "SELECT 'customers' AS table_name, COUNT(*) AS row_count FROM customers;"
 
 verify: build up smoke-test down ## Full verification: build, start, smoke-test, stop
 
