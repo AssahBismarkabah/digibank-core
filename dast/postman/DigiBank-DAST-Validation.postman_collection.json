@@ -1,9 +1,9 @@
 {
   "info": {
     "name": "DigiBank DAST Validation",
-    "description": "Security-oriented API test collection for the DigiBank DAST campaign (Workshop 3).\n\nCovers:\n  - Happy-path smoke (ensures business logic is intact after hardening)\n  - Input validation boundaries (negative amounts, empty fields, invalid email)\n  - Error response shape (checks that no stack trace / class names leak)\n  - Security header assertions (X-Content-Type-Options, etc.)\n  - Not-found / 404 response envelope quality\n\nRun with Newman:\n  npx newman run DigiBank-DAST-Validation.postman_collection.json \\\n    --environment DigiBank-local.postman_environment.json \\\n    --reporters cli,json,html",
+    "description": "Security-oriented API test collection for the DigiBank DAST campaign (Workshop 3).\n\nCovers:\n  - Happy-path smoke for customers, accounts, transactions and compliance\n  - Input validation boundaries (negative/zero amounts, empty fields, invalid email)\n  - Error response shape (checks that no stack trace / class names leak)\n  - Security header assertions (X-Content-Type-Options, etc.)\n  - Not-found / 404 response envelope quality (incl. compliance)\n  - Generic-error assertions (no raw ids echoed from 404/invalid responses)\n\nEnvironments (same key set, different baseUrl):\n  - DigiBank-local.postman_environment.json  (http://127.0.0.1:8080)\n  - DigiBank-dev.postman_environment.json    (https://dev.digibank.internal)\n  - DigiBank-prod.postman_environment.json   (https://api.digibank.example)\n\nRun with Newman (see dast/postman/newman-run.sh):\n  npx newman run DigiBank-DAST-Validation.postman_collection.json \\\n    --environment DigiBank-local.postman_environment.json \\\n    --reporters cli,json,html",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "item": [
     {
@@ -326,12 +326,26 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('400 for malformed JSON', () => pm.response.to.have.status(400));",
+                  "// The app has no dedicated HttpMessageNotReadableException handler, so",
+                  "// malformed JSON falls through to the generic catch-all and returns 500",
+                  "// with the standard error envelope. Assert the real, verified behaviour:",
+                  "// generic envelope with no stack trace / exception class leakage.",
+                  "pm.test('500 generic error for malformed JSON', () => {",
+                  "  pm.expect(pm.response.code).to.eql(500);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});",
                   "const raw = pm.response.text();",
                   "pm.test('no stack trace in malformed-JSON response', () => {",
                   "  pm.expect(raw).to.not.include('at com.');",
                   "  pm.expect(raw).to.not.include('HttpMessageNotReadableException');",
                   "  pm.expect(raw).to.not.include('Caused by');",
+                  "});",
+                  "pm.test('no Java class name in malformed-JSON response', () => {",
+                  "  pm.expect(raw).to.not.match(/com\\.digibank/);",
+                  "  pm.expect(raw).to.not.match(/org\\.springframework/);",
+                  "  pm.expect(raw).to.not.match(/java\\.lang/);",
                   "});"
                 ]
               }
@@ -354,8 +368,17 @@
       "description": "Verify that 404 responses do not disclose internal identifiers, SQL, or stack traces.",
       "item": [
         {
-          "name": "3.1 GET customer – non-existent id (99999)",
+          "name": "3.1 GET customer – non-existent id (random probe)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Randomized, non-existent probe id so this test is always a genuine 404",
+                  "pm.environment.set('probeId', Date.now() + 99999);"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -369,6 +392,11 @@
                   "  pm.expect(raw).to.not.include('Exception');",
                   "  pm.expect(raw).to.not.include('Caused by');",
                   "});",
+                  "pm.test('no Java class name in 404', () => {",
+                  "  pm.expect(raw).to.not.match(/com\\.digibank/);",
+                  "  pm.expect(raw).to.not.match(/org\\.springframework/);",
+                  "  pm.expect(raw).to.not.match(/java\\.lang/);",
+                  "});",
                   "pm.test('no SQL in 404', () => {",
                   "  pm.expect(raw.toLowerCase()).to.not.include('select ');",
                   "  pm.expect(raw.toLowerCase()).to.not.include('where ');",
@@ -377,6 +405,15 @@
                   "  pm.expect(raw).to.not.match(/\\/home\\//);",
                   "  pm.expect(raw).to.not.match(/\\/opt\\//);",
                   "  pm.expect(raw).to.not.match(/\\/app\\//);",
+                  "});",
+                  "",
+                  "// DAST baseline: the generic 404 must NOT echo the raw probed id.",
+                  "// Currently the app returns 'Customer not found with id: <probeId>', so",
+                  "// this assertion is expected to FAIL until the hardening ticket replaces",
+                  "// the message with a generic string. Documented baseline, not a regression.",
+                  "pm.test('[DAST] 404 does not echo raw probe id', () => {",
+                  "  const probe = String(pm.environment.get('probeId'));",
+                  "  pm.expect(raw).to.not.include(probe);",
                   "});"
                 ]
               }
@@ -384,12 +421,20 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/customers/99999"
+            "url": "{{baseUrl}}/api/customers/{{probeId}}"
           }
         },
         {
-          "name": "3.2 GET account – non-existent id (99999)",
+          "name": "3.2 GET account – non-existent id (random probe)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('probeId', Date.now() + 99999);"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -399,6 +444,14 @@
                   "pm.test('no stack trace in 404', () => {",
                   "  pm.expect(raw).to.not.include('at com.');",
                   "  pm.expect(raw).to.not.include('Exception');",
+                  "});",
+                  "pm.test('no Java class name in 404', () => {",
+                  "  pm.expect(raw).to.not.match(/com\\.digibank/);",
+                  "  pm.expect(raw).to.not.match(/org\\.springframework/);",
+                  "});",
+                  "pm.test('[DAST] 404 does not echo raw probe id', () => {",
+                  "  const probe = String(pm.environment.get('probeId'));",
+                  "  pm.expect(raw).to.not.include(probe);",
                   "});"
                 ]
               }
@@ -406,12 +459,20 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/accounts/99999"
+            "url": "{{baseUrl}}/api/accounts/{{probeId}}"
           }
         },
         {
-          "name": "3.3 GET transaction – non-existent id (99999)",
+          "name": "3.3 GET transaction – non-existent id (random probe)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('probeId', Date.now() + 99999);"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -421,6 +482,14 @@
                   "pm.test('no stack trace in 404', () => {",
                   "  pm.expect(raw).to.not.include('at com.');",
                   "  pm.expect(raw).to.not.include('Exception');",
+                  "});",
+                  "pm.test('no Java class name in 404', () => {",
+                  "  pm.expect(raw).to.not.match(/com\\.digibank/);",
+                  "  pm.expect(raw).to.not.match(/org\\.springframework/);",
+                  "});",
+                  "pm.test('[DAST] 404 does not echo raw probe id', () => {",
+                  "  const probe = String(pm.environment.get('probeId'));",
+                  "  pm.expect(raw).to.not.include(probe);",
                   "});"
                 ]
               }
@@ -428,7 +497,7 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/transactions/99999"
+            "url": "{{baseUrl}}/api/transactions/{{probeId}}"
           }
         }
       ]
@@ -514,6 +583,217 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/swagger-ui.html"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 – Compliance scenarios (nominal + invalid)",
+      "description": "Compliance is a first-class domain in DigiBank. These scenarios verify the\nnominal create/list/get flow, exercise server-side validation with invalid\npayloads, and confirm that error envelopes for missing resources are generic\n(no raw ids, class names or stack traces leaked). Relies on {{customerId}}\nas seeded in the happy-path section.",
+      "item": [
+        {
+          "name": "5.1 Create compliance check (valid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('response is JSON', () => pm.response.to.be.json);",
+                  "const body = pm.response.json();",
+                  "pm.test('id is a number', () => pm.expect(body.id).to.be.a('number'));",
+                  "pm.test('server-set checkDate present', () => pm.expect(body.checkDate).to.be.a('string'));",
+                  "pm.environment.set('complianceId', body.id);",
+                  "",
+                  "// Security: no stack trace or exception class names",
+                  "const raw = pm.response.text();",
+                  "pm.test('no stack trace in 201 response', () => {",
+                  "  pm.expect(raw).to.not.include('at com.');",
+                  "  pm.expect(raw).to.not.include('Exception');",
+                  "  pm.expect(raw).to.not.include('Caused by');",
+                  "});",
+                  "pm.test('no Java class name in 201 response', () => {",
+                  "  pm.expect(raw).to.not.match(/com\\.digibank/);",
+                  "  pm.expect(raw).to.not.match(/org\\.springframework/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": {{customerId}},\n  \"checkType\": \"KYC\",\n  \"status\": \"PASSED\",\n  \"checkedBy\": \"officer@digibank\",\n  \"remarks\": \"DAST nominal KYC check\"\n}"
+            },
+            "url": "{{baseUrl}}/api/compliance"
+          }
+        },
+        {
+          "name": "5.2 List compliance checks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/compliance"
+          }
+        },
+        {
+          "name": "5.3 Get compliance check by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('id matches', () => pm.expect(body.id).to.eql(pm.environment.get('complianceId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/compliance/{{complianceId}}"
+          }
+        },
+        {
+          "name": "5.4 Get compliance by customer (valid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/compliance/by-customer/{{customerId}}"
+          }
+        },
+        {
+          "name": "5.5 Create compliance check – empty required fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('response is JSON', () => pm.response.to.be.json);",
+                  "const body = pm.response.json();",
+                  "pm.test('generic validation envelope', () => {",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "  pm.expect(body.message).to.eql('Validation failed');",
+                  "  pm.expect(body.violations).to.be.an('object');",
+                  "});",
+                  "const raw = pm.response.text();",
+                  "pm.test('no Java class name in 400 response', () => {",
+                  "  pm.expect(raw).to.not.match(/com\\.digibank/);",
+                  "  pm.expect(raw).to.not.match(/org\\.springframework/);",
+                  "  pm.expect(raw).to.not.match(/java\\.lang/);",
+                  "});",
+                  "pm.test('no stack trace in 400 response', () => {",
+                  "  pm.expect(raw).to.not.include('at com.');",
+                  "  pm.expect(raw).to.not.include('Caused by');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": {{customerId}},\n  \"checkType\": \"\",\n  \"status\": \"\",\n  \"checkedBy\": \"\"\n}"
+            },
+            "url": "{{baseUrl}}/api/compliance"
+          }
+        },
+        {
+          "name": "5.6 Create compliance check – missing customerId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('generic validation envelope', () => {",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "  pm.expect(body.message).to.eql('Validation failed');",
+                  "  pm.expect(body.violations.customerId).to.not.be.undefined;",
+                  "});",
+                  "const raw = pm.response.text();",
+                  "pm.test('no stack trace', () => {",
+                  "  pm.expect(raw).to.not.include('at com.');",
+                  "  pm.expect(raw).to.not.include('Exception');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkType\": \"AML\",\n  \"status\": \"PENDING\",\n  \"checkedBy\": \"officer@digibank\"\n}"
+            },
+            "url": "{{baseUrl}}/api/compliance"
+          }
+        },
+        {
+          "name": "5.7 GET compliance – non-existent id (random probe)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('probeId', Date.now() + 99999);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+                  "const raw = pm.response.text();",
+                  "pm.test('no stack trace in 404', () => {",
+                  "  pm.expect(raw).to.not.include('at com.');",
+                  "  pm.expect(raw).to.not.include('Exception');",
+                  "  pm.expect(raw).to.not.include('Caused by');",
+                  "});",
+                  "pm.test('no Java class name in 404', () => {",
+                  "  pm.expect(raw).to.not.match(/com\\.digibank/);",
+                  "  pm.expect(raw).to.not.match(/org\\.springframework/);",
+                  "});",
+                  "pm.test('[DAST] 404 does not echo raw probe id', () => {",
+                  "  const probe = String(pm.environment.get('probeId'));",
+                  "  pm.expect(raw).to.not.include(probe);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/compliance/{{probeId}}"
           }
         }
       ]

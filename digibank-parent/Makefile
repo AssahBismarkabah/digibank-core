@@ -3,7 +3,7 @@
 # Makefile for building, deploying, and testing via Docker Compose
 # =============================================================================
 
-.PHONY: build build-skip-tests up up-wildfly up-foreground down down-volumes logs logs-app logs-db test smoke-test verify zap-scan zap-report clean help
+.PHONY: build build-skip-tests up up-wildfly up-foreground down down-volumes logs logs-app logs-db test smoke-test verify zap-scan zap-report newman-scan clean help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -57,3 +57,6 @@ zap-report: ## Open the latest ZAP HTML report in the default browser
 	@xdg-open ../dast/reports/zap-report.html 2>/dev/null || \
 	 open ../dast/reports/zap-report.html 2>/dev/null || \
 	 echo "Open manually: ../dast/reports/zap-report.html"
+
+newman-scan: ## Replay the DAST Postman collection with Newman against the running dev stack
+	../dast/postman/newman-run.sh --env local
