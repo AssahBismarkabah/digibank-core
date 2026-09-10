@@ -1,0 +1,48 @@
+@startuml Digi Bank - Microservices Topology
+skinparam monochrome true
+skinparam shadowing false
+skinparam componentStyle uml2
+skinparam linetype ortho
+title Digi Bank\nMicroservices Topology
+
+actor Client
+
+node "Docker Compose host" as compose {
+  node "API Gateway\n:8080" as gateway
+  package "Business services" as services {
+    node "Customer Service\n:8081" as customer
+    node "Account Service\n:8082" as account
+    node "Transaction Service\n:8083" as transaction
+    node "Compliance Service\n:8084" as compliance
+    node "Notification Service\n:8085" as notification
+  }
+  package "Platform services" as platform {
+    node "Discovery Server\n:8761" as discovery
+    node "Config Server\n:8888" as config
+  }
+}
+
+database "customer-db" as customerDb
+database "account-db" as accountDb
+database "transaction-db" as transactionDb
+database "compliance-db" as complianceDb
+
+Client --> gateway : HTTPS / REST
+gateway --> customer : /api/customers
+gateway --> account : /api/accounts
+gateway --> transaction : /api/transactions
+gateway --> compliance : /api/compliance
+gateway --> notification : /api/notifications
+
+note right of customerDb
+  One database boundary per
+  persistence-owning service.
+end note
+
+services ..> platform : registration, lookup, configuration
+
+note right of platform
+  Lightweight registry and configuration
+  boundaries used by the educational stack.
+end note
+@enduml

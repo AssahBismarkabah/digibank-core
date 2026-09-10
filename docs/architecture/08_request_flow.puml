@@ -1,0 +1,27 @@
+@startuml Digi Bank - Request Flow
+skinparam monochrome true
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+title Digi Bank\nGateway Request Flow
+
+actor Client
+participant "API Gateway" as Gateway
+participant "Transaction Service" as Transaction
+participant "Compliance Service" as Compliance
+participant "Account Service" as Account
+participant "Notification Service" as Notification
+database "Transaction DB" as TxDb
+
+Client -> Gateway : POST /api/transactions
+Gateway -> Transaction : forward request
+Transaction -> Compliance : validate transaction
+Compliance --> Transaction : validation result
+Transaction -> Account : debit or credit balance
+Account --> Transaction : balance updated
+Transaction -> TxDb : persist transaction
+TxDb --> Transaction : committed
+Transaction -> Notification : send operation notification
+Notification --> Transaction : accepted / fallback
+Transaction --> Gateway : 201 Created
+Gateway --> Client : response
+@enduml

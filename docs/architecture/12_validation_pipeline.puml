@@ -1,0 +1,24 @@
+@startuml Digi Bank - Validation Pipeline
+skinparam monochrome true
+skinparam shadowing false
+skinparam componentStyle uml2
+skinparam linetype ortho
+title Digi Bank\nBuild and Validation Pipeline
+
+start
+:Checkout repository;
+:Maven compile and unit tests;
+:Build Docker images;
+:Start Docker Compose stack;
+:Validate all expected containers;
+:Run gateway and service smoke checks;
+:Run Newman API validation;
+:Run OWASP ZAP baseline scan;
+:Upload Newman and ZAP reports;
+stop
+
+note right
+  Newman: 74/74 assertions passed locally.
+  ZAP: 0 failures, baseline warnings only.
+end note
+@enduml

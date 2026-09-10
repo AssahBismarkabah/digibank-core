@@ -1,0 +1,33 @@
+@startuml Digi Bank - Discovery and Configuration
+skinparam monochrome true
+skinparam shadowing false
+skinparam componentStyle uml2
+skinparam linetype ortho
+title Digi Bank\nDiscovery and Configuration Flow
+
+node "Service startup" as startup
+component "Customer Service" as customer
+component "Account Service" as account
+component "Transaction Service" as transaction
+component "API Gateway" as gateway
+component "Discovery Server\nregistry" as discovery
+component "Config Server\nservice settings" as config
+artifact "Environment variables\n(local / CI overrides)" as env
+
+startup --> config : GET /config/{service}
+config --> customer : customer settings
+config --> account : account settings
+config --> transaction : transaction settings
+config --> gateway : gateway settings
+
+customer --> discovery : register service
+account --> discovery : register service
+transaction --> discovery : register service
+gateway --> discovery : lookup service
+env ..> config : override values
+
+note bottom
+  Educational implementation: lightweight HTTP registry and
+  configuration boundary, orchestrated by Docker Compose.
+end note
+@enduml

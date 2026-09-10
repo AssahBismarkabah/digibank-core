@@ -1,0 +1,39 @@
+@startuml Digi Bank - Database Ownership
+skinparam monochrome true
+skinparam shadowing false
+skinparam componentStyle uml2
+skinparam linetype ortho
+title Digi Bank\nDatabase-per-Service Boundaries
+
+node "Customer Service" as customer {
+  component "Customer REST API"
+  component "Customer domain"
+}
+node "Account Service" as account {
+  component "Account REST API"
+  component "Account domain"
+}
+node "Transaction Service" as transaction {
+  component "Transaction REST API"
+  component "Transaction domain"
+}
+node "Compliance Service" as compliance {
+  component "Compliance REST API"
+  component "Compliance domain"
+}
+
+database "customer-db\nFlyway schema" as customerDb
+database "account-db\nFlyway schema" as accountDb
+database "transaction-db\nFlyway schema" as transactionDb
+database "compliance-db\nFlyway schema" as complianceDb
+
+customer --> customerDb : JPA / JDBC
+account --> accountDb : JPA / JDBC
+transaction --> transactionDb : JPA / JDBC
+compliance --> complianceDb : JPA / JDBC
+
+note bottom
+  Each service owns its data and migrations.
+  Cross-service collaboration uses REST, not shared tables.
+end note
+@enduml

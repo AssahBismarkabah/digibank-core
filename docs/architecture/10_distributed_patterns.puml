@@ -1,0 +1,32 @@
+@startuml Digi Bank - Distributed Patterns
+skinparam monochrome true
+skinparam shadowing false
+skinparam componentStyle uml2
+skinparam linetype ortho
+title Digi Bank\nDistributed Patterns
+
+package "Transaction Service" {
+  component "TransactionController" as controller
+  component "TransactionService\n(command / write path)" as command
+  component "TransactionQueryService\n(read path)" as query
+  component "TransferSagaService" as saga
+}
+
+component "Account Service" as account
+component "Compliance Service" as compliance
+component "Notification Service" as notification
+component "Circuit Breaker" as breaker
+database "Transaction DB" as db
+
+controller --> command : commands
+controller --> query : queries
+command --> db : write
+query --> db : read
+command --> compliance : validate
+command --> saga : transfer coordination
+saga --> account : debit / credit
+saga --> breaker
+breaker --> notification : notify
+breaker ..> notification : fallback when unavailable
+saga ..> account : compensate on failure
+@enduml
