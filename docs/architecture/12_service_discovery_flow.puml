@@ -7,13 +7,11 @@ title Digi Bank\nService Registration and Lookup
 
 component "Discovery Server\n:8761" as discovery
 
-node "Registered services" as services {
-  component "Customer Service" as customer
-  component "Account Service" as account
-  component "Transaction Service" as transaction
-  component "Compliance Service" as compliance
-  component "Notification Service" as notification
-}
+component "Customer Service" as customer
+component "Account Service" as account
+component "Transaction Service" as transaction
+component "Compliance Service" as compliance
+component "Notification Service" as notification
 
 component "API Gateway" as gateway
 
@@ -25,8 +23,4 @@ notification --> discovery : register
 gateway --> discovery : lookup service
 discovery --> gateway : service address
 
-note bottom
-  The workshop uses a lightweight registry boundary rather than Eureka.
-  Docker Compose provides the local service host.
-end note
 @enduml
