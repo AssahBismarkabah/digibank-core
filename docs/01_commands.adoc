@@ -1,6 +1,47 @@
 = Digi Bank Commands
 
-Use these commands from the `digibank-parent/` directory.
+== Workshop 4 Microservices Quick Start
+
+Use these commands from the repository root while on the `main` branch.
+
+[source,shell]
+----
+make build        # Compile and test all microservices
+make image-build  # Build the Docker images
+make up           # Start the complete Compose stack
+make smoke        # Verify the gateway and platform endpoints
+----
+
+Use the following commands for the remaining lifecycle and validation
+operations:
+
+[source,shell]
+----
+make status          # Show container status
+make logs            # Follow service logs
+make restart         # Recreate the stack
+make validate-stack  # Confirm every expected container is running
+make newman-scan     # Replay the API security collection
+make zap-scan        # Run the OWASP ZAP baseline scan
+make down            # Stop the containers
+make clean           # Stop containers and remove database volumes
+----
+
+The detailed microservice architecture, deliverables, and design decisions are
+documented in `docs/07_microservice_architecture.adoc` and the service-specific
+notes in `digibank-microservices/README.adoc`.
+
+== Branches Used In The Workshop
+
+* `main` -- Spring Boot microservices implementation for Workshop 4.
+* `monolith-implementation` -- Spring Boot modular monolith implementation for
+  Workshop 3 and migration comparison.
+* `legacy/jakarta-ee` -- original Jakarta EE implementation used as the
+  reference system.
+
+The remaining sections describe the earlier modular-monolith implementation.
+Run those commands only after checking out `monolith-implementation` or
+`legacy/jakarta-ee` as appropriate.
 
 == Build And Test
 
