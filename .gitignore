@@ -29,4 +29,8 @@ bin/
 
 # Dependencies
 node_modules/
+/.codex-output/
+/dast/reports/*
+!/dast/reports/.gitkeep
+!/dast/reports/baseline/
 .gradle/

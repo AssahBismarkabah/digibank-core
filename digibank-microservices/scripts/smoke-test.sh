@@ -4,6 +4,11 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 DISCOVERY_URL="${DISCOVERY_URL:-http://localhost:8761}"
 CONFIG_URL="${CONFIG_URL:-http://localhost:8888}"
+CUSTOMER_URL="${CUSTOMER_URL:-http://localhost:8081}"
+ACCOUNT_URL="${ACCOUNT_URL:-http://localhost:8082}"
+TRANSACTION_URL="${TRANSACTION_URL:-http://localhost:8083}"
+COMPLIANCE_URL="${COMPLIANCE_URL:-http://localhost:8084}"
+NOTIFICATION_URL="${NOTIFICATION_URL:-http://localhost:8085}"
 
 check() {
   local name="$1"
@@ -28,6 +33,11 @@ check customer-api "${BASE_URL}/api/customers"
 check account-api "${BASE_URL}/api/accounts"
 check transaction-api "${BASE_URL}/api/transactions"
 check compliance-api "${BASE_URL}/api/compliance"
+check customer-service "${CUSTOMER_URL}/api/customers"
+check account-service "${ACCOUNT_URL}/api/accounts"
+check transaction-service "${TRANSACTION_URL}/api/transactions"
+check compliance-service "${COMPLIANCE_URL}/api/compliance"
+check notification-service "${NOTIFICATION_URL}/actuator/health"
 check discovery-registry "${DISCOVERY_URL}/registry"
 check config-server "${CONFIG_URL}/config/customer-service"
 

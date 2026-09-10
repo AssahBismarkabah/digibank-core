@@ -326,12 +326,10 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// The app has no dedicated HttpMessageNotReadableException handler, so",
-                  "// malformed JSON falls through to the generic catch-all and returns 500",
-                  "// with the standard error envelope. Assert the real, verified behaviour:",
+                  "// Malformed JSON is rejected as a client-side request error",
                   "// generic envelope with no stack trace / exception class leakage.",
-                  "pm.test('500 generic error for malformed JSON', () => {",
-                  "  pm.expect(pm.response.code).to.eql(500);",
+                  "pm.test('400 generic error for malformed JSON', () => {",
+                  "  pm.expect(pm.response.code).to.eql(400);",
                   "  const body = pm.response.json();",
                   "  pm.expect(body.success).to.eql(false);",
                   "  pm.expect(body.message).to.be.a('string');",

@@ -6,6 +6,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api")
 public class GatewayController {
@@ -30,9 +32,9 @@ public class GatewayController {
         this.notificationUrl = notificationUrl;
     }
 
-    @GetMapping("/customers{path:.*}")
-    public ResponseEntity<Object> customerRead(@PathVariable String path) {
-        return forward(customerUrl, "/api/customers" + path, HttpMethod.valueOf("GET"));
+    @GetMapping({"/customers", "/customers/{id}"})
+    public ResponseEntity<Object> customerRead(@PathVariable(required = false) String id) {
+        return forward(customerUrl, "/api/customers" + suffix(id), HttpMethod.GET);
     }
 
     @PostMapping("/customers")
@@ -40,8 +42,9 @@ public class GatewayController {
         return post(customerUrl, "/api/customers", body);
     }
 
-    @GetMapping("/accounts{path:.*}")
-    public ResponseEntity<Object> accountRead(@PathVariable String path) {
+    @GetMapping({"/accounts", "/accounts/{id}", "/accounts/by-customer/{customerId}"})
+    public ResponseEntity<Object> accountRead(@PathVariable Map<String, String> variables) {
+        String path = variables.containsKey("customerId") ? "/by-customer/" + variables.get("customerId") : suffix(variables.get("id"));
         return forward(accountUrl, "/api/accounts" + path, HttpMethod.GET);
     }
 
@@ -50,8 +53,9 @@ public class GatewayController {
         return post(accountUrl, "/api/accounts", body);
     }
 
-    @GetMapping("/transactions{path:.*}")
-    public ResponseEntity<Object> transactionRead(@PathVariable String path) {
+    @GetMapping({"/transactions", "/transactions/{id}", "/transactions/by-account/{accountId}"})
+    public ResponseEntity<Object> transactionRead(@PathVariable Map<String, String> variables) {
+        String path = variables.containsKey("accountId") ? "/by-account/" + variables.get("accountId") : suffix(variables.get("id"));
         return forward(transactionUrl, "/api/transactions" + path, HttpMethod.GET);
     }
 
@@ -60,8 +64,9 @@ public class GatewayController {
         return post(transactionUrl, "/api/transactions", body);
     }
 
-    @GetMapping("/compliance{path:.*}")
-    public ResponseEntity<Object> complianceRead(@PathVariable String path) {
+    @GetMapping({"/compliance", "/compliance/{id}", "/compliance/by-customer/{customerId}"})
+    public ResponseEntity<Object> complianceRead(@PathVariable Map<String, String> variables) {
+        String path = variables.containsKey("customerId") ? "/by-customer/" + variables.get("customerId") : suffix(variables.get("id"));
         return forward(complianceUrl, "/api/compliance" + path, HttpMethod.GET);
     }
 
@@ -76,10 +81,18 @@ public class GatewayController {
     }
 
     private ResponseEntity<Object> post(String baseUrl, String path, Object body) {
-        return builder.baseUrl(baseUrl).build().post().uri(path).body(body).retrieve().toEntity(Object.class);
+        return relay(builder.baseUrl(baseUrl).build().post().uri(path).body(body).retrieve().toEntity(Object.class));
     }
 
     private ResponseEntity<Object> forward(String baseUrl, String path, HttpMethod method) {
-        return builder.baseUrl(baseUrl).build().method(method).uri(path).retrieve().toEntity(Object.class);
+        return relay(builder.baseUrl(baseUrl).build().method(method).uri(path).retrieve().toEntity(Object.class));
+    }
+
+    private ResponseEntity<Object> relay(ResponseEntity<Object> response) {
+        return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+    }
+
+    private String suffix(String id) {
+        return id == null ? "" : "/" + id;
     }
 }
