@@ -1,4 +1,4 @@
-.PHONY: help build test image-build up restart status logs smoke down clean
+.PHONY: help build test image-build up restart status logs smoke newman-scan zap-scan down clean
 
 help:
 	$(MAKE) -C digibank-microservices help
@@ -18,6 +18,10 @@ logs:
 	$(MAKE) -C digibank-microservices logs
 smoke:
 	$(MAKE) -C digibank-microservices smoke
+newman-scan:
+	$(MAKE) -C digibank-microservices newman-scan
+zap-scan:
+	$(MAKE) -C digibank-microservices zap-scan
 down:
 	$(MAKE) -C digibank-microservices down
 clean:

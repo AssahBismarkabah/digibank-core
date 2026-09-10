@@ -7,40 +7,32 @@ campaign described in the Workshop 3 guide (§2.13-2.15, §4.9).
 
 ## Running ZAP locally
 
-> **Prerequisite**: the DigiBank dev stack must be running on port 8080.
+> **Prerequisite**: the DigiBank microservice stack must be running on port 8080.
 >
 > ```bash
-> cd digibank-parent
-> make up            # starts postgres + app (dev profile)
+> make up            # starts PostgreSQL and the microservice stack
 > ```
 
 ### Option 1 – Makefile shortcut (recommended)
 
 ```bash
-cd digibank-parent
-make zap-scan      # runs ZAP baseline scan; reports land in dast/reports/
-make zap-report    # opens the HTML report in the default browser
+make zap-scan      # runs the ZAP baseline scan; reports land in dast/reports/
 ```
 
 ### Option 2 – Script directly
 
 ```bash
-cd digibank-parent
-./scripts/zap-scan.sh                        # baseline (passive + spider)
-./scripts/zap-scan.sh --mode full            # full active scan (slower)
-./scripts/zap-scan.sh --target http://localhost:9090   # custom target
+docker run --rm --network host \
+  -v "$PWD/dast/reports:/zap/wrk:rw" \
+  zaproxy/zap-stable zap-baseline.py \
+  -t http://127.0.0.1:8080/ -r zap-report.html -J zap-report.json -w zap-report.md
 ```
 
 ### Option 3 – Docker Compose ZAP profile
 
-```bash
-cd digibank-parent
-docker compose --profile dev --profile zap up --build -d
-docker compose logs -f zap
-```
-
-The ZAP container targets `http://digibank-app:8080` (the internal network alias)
-and writes reports into `dast/reports/` via a bind-mount.
+The local Makefile target and the CI job both scan the gateway at
+`http://127.0.0.1:8080/`. This keeps the scan boundary stable while additional
+microservices are added behind the gateway.
 
 ---
 
@@ -72,6 +64,7 @@ environments and produces timestamped CLI/JSON/HTML reports under
 `dast/reports/<timestamp>/` (with a `dast/reports/latest` symlink).
 
 ```bash
+make newman-scan                            # replay local through the gateway
 ./dast/postman/newman-run.sh              # replay local (default)
 ./dast/postman/newman-run.sh --env dev    # replay dev target
 ./dast/postman/newman-run.sh --env prod --informational
@@ -98,11 +91,11 @@ npx newman run dast/postman/DigiBank-DAST-Validation.postman_collection.json \
   --reporter-html-export dast/reports/newman-report.html
 ```
 
-> **Note on pre-hardening assertions.** A few assertions document *expected*
+> **Note on baseline assertions.** A few assertions document *expected*
 > baseline differences and are not regressions:
 >
-> * Security-header assertions (group 4.1) are expected to fail until the
->   hardening tickets add the missing response headers.
+> * Security-header assertions (group 4.1) verify the gateway response headers
+>   and should pass for the current microservice stack.
 > * The Swagger check (4.2) is skipped until the springdoc/OpenAPI dependency
 >   lands.
 > * The `404 does not echo raw probe id` assertions (groups 3.x and 5.7)
@@ -124,7 +117,7 @@ end-to-end.
 
 ### Prerequisites
 
-* The DigiBank dev stack is running: `cd digibank-parent && make up`
+* The DigiBank microservice stack is running: `make up`
 * Newman is available: `npm install -g newman newman-reporter-html` (the HTML
   reporter is optional; the runner degrades to CLI + JSON without it)
 * No other service occupies port `8080` on the host
@@ -138,8 +131,7 @@ end-to-end.
 ### Step 1 – start the stack
 
 ```bash
-cd digibank-parent
-make up                 # starts postgres + app (dev profile, port 8080)
+make up                 # starts PostgreSQL and the gateway (port 8080)
 ```
 
 Wait until the app answers:
@@ -175,10 +167,8 @@ Reports are written to `dast/reports/<timestamp>/newman-report.{json,html}` and
   with no class-name / stack-trace / SQL leakage.
 * **Invalid scenarios must be rejected:** empty fields, negative/zero amounts,
   and malformed JSON return the documented error envelopes.
-* A handful of assertions fail by design pre-hardening — they are documented
-  baselines (missing `X-Content-Type-Options`, Swagger absent, and the
-  `404 does not echo raw probe id` checks). These are expected until the
-  hardening tickets land, not regressions.
+* The security-header assertion is expected to pass on the current gateway.
+  Treat unexpected failures as implementation or environment regressions.
 
 ### Running against an alternate port (when 8080 is taken)
 
@@ -186,15 +176,14 @@ Build the image once, then start the app container on a free host port and
 point an environment file at it:
 
 ```bash
-cd digibank-parent
-docker compose --profile dev build app
-docker run -d --name digibank-app-test \
-  --network digibank-parent_digibank-net \
+docker compose -f digibank-microservices/docker-compose.yml build api-gateway
+docker run -d --name digibank-gateway-test \
+  --network digibank-microservices_digibank-net \
   -p 8090:8080 \
   -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/digibank_db \
   -e SPRING_DATASOURCE_USERNAME=digibank_user \
   -e SPRING_DATASOURCE_PASSWORD=digibank_pwd \
-  digibank-parent-app:latest
+  digibank-microservices-api-gateway:latest
 ```
 
 Then create a throwaway environment that targets the alternate port and replay:
@@ -212,25 +201,23 @@ docker rm -f digibank-app-test
 
 ## CI integration
 
-Two jobs are added to `.github/workflows/ci.yml`:
+The microservice workflow contains two security jobs in `.github/workflows/ci.yml`:
 
 | Job | Tool | When |
 |-----|------|------|
-| `dast-newman` | Newman | After `build-and-test` |
+| `dast-newman` | Newman | After `build-test-smoke` |
 | `dast-zap`    | OWASP ZAP baseline | After `dast-newman` |
 
 Both jobs upload their reports as GitHub Actions artefacts.
-By default, findings are **informational** (the ZAP baseline runs with
-`fail_action: false` and the Newman step is non-blocking). To make ZAP alert
-findings fail the job without editing the workflow, set the repository variable
-`DAST_BLOCKING` to `true`:
+By default, findings are **informational** while the baseline is being
+established. Newman uses informational mode and ZAP runs with `fail_action:
+false`. Promote findings to blocking only after the corresponding remediation
+tickets are agreed and the workflow policy is changed deliberately.
 
 ```
-Settings → Secrets and variables → Actions → Variables → DAST_BLOCKING = true
-```
-
-The intent is to flip the DAST jobs to blocking permanently once the hardening
-tickets are merged.
+The build, container smoke test, Newman replay, and ZAP baseline are separate
+jobs so future security scanners can be added without mixing their reports or
+their failure policies.
 
 ---
 
@@ -250,6 +237,6 @@ LOW threshold – appropriate for a baseline):
 
 ## Before / after comparison
 
-The `dast/reports/baseline/` directory holds the **pre-hardening** findings.
-After each hardening ticket is merged, re-run `make zap-scan` and compare
-the new report against the baseline to demonstrate remediation effectiveness.
+The `dast/reports/baseline/` directory holds the initial reference findings.
+After each hardening change, re-run `make zap-scan` and compare the new report
+against the baseline to demonstrate remediation effectiveness.
