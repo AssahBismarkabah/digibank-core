@@ -3,30 +3,36 @@ skinparam monochrome true
 skinparam shadowing false
 skinparam componentStyle uml2
 skinparam linetype ortho
-title Digi Bank\nDistributed Patterns
+title Digi Bank\nDistributed Patterns in Transaction Service
 
-package "Transaction Service" {
+node "Transaction Service" as transaction {
   component "TransactionController" as controller
-  component "TransactionService\n(command / write path)" as command
-  component "TransactionQueryService\n(read path)" as query
+  component "TransactionService\ncommand / write path" as command
+  component "TransactionQueryService\nquery / read path" as query
   component "TransferSagaService" as saga
+  database "transaction-db" as db
+
+  controller --> command : command
+  controller --> query : query
+  command --> db : write
+  query --> db : read
+  command --> saga : transfer
 }
 
-component "Account Service" as account
 component "Compliance Service" as compliance
-component "Notification Service" as notification
+component "Account Service" as account
 component "Circuit Breaker" as breaker
-database "Transaction DB" as db
+component "Notification Service" as notification
 
-controller --> command : commands
-controller --> query : queries
-command --> db : write
-query --> db : read
 command --> compliance : validate
-command --> saga : transfer coordination
 saga --> account : debit / credit
-saga --> breaker
-breaker --> notification : notify
-breaker ..> notification : fallback when unavailable
 saga ..> account : compensate on failure
+saga --> breaker : notify
+breaker --> notification : call
+breaker ..> notification : fallback
+
+note bottom
+  CQRS separates reads from writes. Saga coordinates a transfer.
+  Circuit Breaker protects notification calls when the dependency is unavailable.
+end note
 @enduml

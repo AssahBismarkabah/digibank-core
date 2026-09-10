@@ -3,31 +3,43 @@ skinparam monochrome true
 skinparam shadowing false
 skinparam componentStyle uml2
 skinparam linetype ortho
-title Digi Bank\nDiscovery and Configuration Flow
+title Digi Bank\nDiscovery and Configuration Boundaries
 
-node "Service startup" as startup
-component "Customer Service" as customer
-component "Account Service" as account
-component "Transaction Service" as transaction
-component "API Gateway" as gateway
-component "Discovery Server\nregistry" as discovery
-component "Config Server\nservice settings" as config
+node "Platform services" as platform {
+  component "Config Server\nservice settings" as config
+  component "Discovery Server\nservice registry" as discovery
+  config -[hidden]right- discovery
+}
+
+node "Business services" as services {
+  component "Customer Service" as customer
+  component "Account Service" as account
+  component "Transaction Service" as transaction
+  component "Compliance Service" as compliance
+  component "API Gateway" as gateway
+  customer -[hidden]right- account
+  account -[hidden]right- transaction
+  transaction -[hidden]right- compliance
+  compliance -[hidden]right- gateway
+}
+
 artifact "Environment variables\n(local / CI overrides)" as env
 
-startup --> config : GET /config/{service}
-config --> customer : customer settings
-config --> account : account settings
-config --> transaction : transaction settings
-config --> gateway : gateway settings
+env ..> config : override
+config --> customer : configuration
+config --> account : configuration
+config --> transaction : configuration
+config --> compliance : configuration
+config --> gateway : configuration
 
-customer --> discovery : register service
-account --> discovery : register service
-transaction --> discovery : register service
-gateway --> discovery : lookup service
-env ..> config : override values
+customer --> discovery : register
+account --> discovery : register
+transaction --> discovery : register
+compliance --> discovery : register
+gateway --> discovery : lookup
 
 note bottom
-  Educational implementation: lightweight HTTP registry and
-  configuration boundary, orchestrated by Docker Compose.
+  The project uses lightweight HTTP boundaries for the workshop.
+  Docker Compose provides the local service host and startup order.
 end note
 @enduml
