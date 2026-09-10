@@ -6,43 +6,49 @@ skinparam linetype ortho
 title Digi Bank\nMicroservices Topology
 
 actor Client
+node "API Gateway\n:8080" as gateway
 
-node "Docker Compose host" as compose {
-  node "API Gateway\n:8080" as gateway
-  package "Business services" as services {
-    node "Customer Service\n:8081" as customer
-    node "Account Service\n:8082" as account
-    node "Transaction Service\n:8083" as transaction
-    node "Compliance Service\n:8084" as compliance
-    node "Notification Service\n:8085" as notification
-  }
-  package "Platform services" as platform {
-    node "Discovery Server\n:8761" as discovery
-    node "Config Server\n:8888" as config
-  }
+node "Customer Service\n:8081" as customer {
+  component "Customer REST API" as customerApi
+  database "customer-db" as customerDb
+  customerApi --> customerDb
+}
+node "Account Service\n:8082" as account {
+  component "Account REST API" as accountApi
+  database "account-db" as accountDb
+  accountApi --> accountDb
+}
+node "Transaction Service\n:8083" as transaction {
+  component "Transaction REST API" as transactionApi
+  database "transaction-db" as transactionDb
+  transactionApi --> transactionDb
+}
+node "Compliance Service\n:8084" as compliance {
+  component "Compliance REST API" as complianceApi
+  database "compliance-db" as complianceDb
+  complianceApi --> complianceDb
+}
+node "Notification Service\n:8085" as notification
+
+node "Platform services" as platform {
+  component "Discovery Server\n:8761" as discovery
+  component "Config Server\n:8888" as config
 }
 
-database "customer-db" as customerDb
-database "account-db" as accountDb
-database "transaction-db" as transactionDb
-database "compliance-db" as complianceDb
-
 Client --> gateway : HTTPS / REST
-gateway --> customer : /api/customers
-gateway --> account : /api/accounts
-gateway --> transaction : /api/transactions
-gateway --> compliance : /api/compliance
+gateway --> customerApi : /api/customers
+gateway --> accountApi : /api/accounts
+gateway --> transactionApi : /api/transactions
+gateway --> complianceApi : /api/compliance
 gateway --> notification : /api/notifications
 
-note right of customerDb
-  One database boundary per
-  persistence-owning service.
-end note
-
-services ..> platform : registration, lookup, configuration
-
 note right of platform
-  Lightweight registry and configuration
-  boundaries used by the educational stack.
+  Shared platform boundaries for
+  discovery and configuration.
 end note
+
+customer -[hidden]right- account
+account -[hidden]right- transaction
+transaction -[hidden]right- compliance
+compliance -[hidden]right- notification
 @enduml
