@@ -118,8 +118,8 @@ end-to-end.
 ### Prerequisites
 
 * The DigiBank microservice stack is running: `make up`
-* Newman is available: `npm install -g newman newman-reporter-html` (the HTML
-  reporter is optional; the runner degrades to CLI + JSON without it)
+* Newman is available: `npm install -g newman` (the HTML reporter is optional;
+  the runner degrades to CLI + JSON without it)
 * No other service occupies port `8080` on the host
 
 > **Port conflict.** The container binds `8080:8080` in `docker-compose.yml`.

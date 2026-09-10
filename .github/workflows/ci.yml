@@ -46,8 +46,10 @@ jobs:
           node-version: '22'
       - name: Start stack
         run: make up
+      - name: Wait for stack readiness
+        run: make smoke
       - name: Install Newman
-        run: npm install --no-save --no-package-lock newman@6 newman-reporter-html
+        run: npm install --no-save --no-package-lock newman@6
       - name: Run Newman collection
         working-directory: dast
         run: ./postman/newman-run.sh --env local --informational
