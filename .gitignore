@@ -3,6 +3,7 @@
 .vscode/
 .codex-build/
 *.iml
+dast/
 .project
 .classpath
 .factorypath
