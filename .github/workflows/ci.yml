@@ -77,6 +77,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start stack
         run: make up
+      - name: Wait for stack readiness
+        run: make smoke
+      - name: Validate running service set
+        run: make validate-stack
       - name: Run ZAP baseline
         uses: zaproxy/action-baseline@v0.15.0
         with:
