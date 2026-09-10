@@ -26,8 +26,68 @@ make image-build
 make up
 make status
 make smoke
+make validate-stack
+make newman-scan
+make zap-scan
 make down
 ----
 
 For focused work, use `make test`, `make logs`, or `make restart`. Use
 `make clean` only when the database volumes should also be removed.
+
+`make validate-stack` confirms every expected container is running. `make smoke`
+waits for the gateway, discovery, config, and business endpoints before the
+black-box Newman and ZAP checks are started.
+
+== Request and Configuration Flow
+
+Clients call `api-gateway` on port 8080. The gateway forwards customer,
+account, transaction, and compliance requests to the corresponding service.
+Each business service owns one PostgreSQL database and exposes only its own
+REST resources. The transaction service calls account and notification through
+explicit HTTP clients.
+
+The `discovery-server` provides a lightweight registry at `/registry`. The
+`config-server` provides service-specific configuration at `/config/{service}`.
+Both boundaries are intentionally small for the workshop; they are not claimed
+to be Eureka or Spring Cloud Config implementations.
+
+== Distributed Patterns
+
+* **CQRS:** transaction writes are handled by `TransactionService`, while
+  reads are handled by `TransactionQueryService`.
+* **Circuit Breaker:** notification calls use a bounded failure threshold and
+  reset timeout so notification failure does not block the transaction flow.
+* **Transfer Saga:** transaction processing coordinates account update,
+  transaction persistence, notification, and account compensation steps.
+* **Synchronous calls:** the implementation uses REST calls rather than adding
+  a message broker.
+
+== Database-per-Service
+
+Compose provisions independent PostgreSQL databases for customer, account,
+transaction, and compliance. Each persistence service owns its Flyway
+migrations and validates its entity model with Hibernate `ddl-auto: validate`.
+No service directly reads another service's database.
+
+== Workshop 4 Deliverables
+
+| Objective | Repository evidence
+| A4.1 Service boundaries | Service modules and responsibilities listed above
+| A4.2 Microservices architecture | Compose topology and gateway flow
+| A4.3 Standalone Spring Boot projects | Maven modules under this directory
+| A4.4 PostgreSQL per service | Four PostgreSQL Compose services and Flyway migrations
+| A4.5 REST endpoints | Business controllers and gateway routes
+| A4.6 Inter-service calls | Gateway, account, and notification REST clients
+| A4.7 API Gateway | `api-gateway` on port 8080
+| A4.8 Dockerization | Dockerfiles and Compose orchestration
+| A4.9 CI/CD validation | CI build, test, image, smoke, Newman, and ZAP jobs
+| A4.10 Patterns | Registry, config boundary, CQRS, Circuit Breaker, and Saga
+
+== Educational Boundaries
+
+This version is deliberately scoped for the workshop. Discovery and
+configuration are lightweight HTTP services, calls are synchronous, and the
+system runs on one Docker Compose host. Production adoption would normally add
+authenticated registration, external configuration storage, tracing, secrets
+management, and a deployment platform.

@@ -1,6 +1,8 @@
 package com.digibank.discovery;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -21,6 +23,10 @@ public class ServiceRegistryController {
 
     @GetMapping("/{serviceName}")
     public String find(@PathVariable String serviceName) {
-        return services.get(serviceName);
+        String url = services.get(serviceName);
+        if (url == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service is not registered");
+        }
+        return url;
     }
 }

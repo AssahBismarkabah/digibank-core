@@ -15,6 +15,17 @@ public class ConfigurationController {
 
     @GetMapping("/{serviceName}")
     public Map<String, Object> configuration(@PathVariable String serviceName) {
-        return Map.of("service", serviceName, "profile", profile, "source", "config-server");
+        Map<String, Object> values = switch (serviceName) {
+            case "api-gateway" -> Map.of(
+                    "server.port", 8080,
+                    "services.customer-url", "http://customer-service:8081",
+                    "services.account-url", "http://account-service:8082");
+            case "transaction-service" -> Map.of(
+                    "server.port", 8083,
+                    "clients.account-service-url", "http://account-service:8082",
+                    "clients.notification-service-url", "http://notification-service:8085");
+            default -> Map.of("server.port", 0);
+        };
+        return Map.of("service", serviceName, "profile", profile, "source", "config-server", "properties", values);
     }
 }

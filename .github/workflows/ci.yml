@@ -30,6 +30,8 @@ jobs:
         run: make up
       - name: Run smoke checks
         run: make smoke
+      - name: Validate running service set
+        run: make validate-stack
       - name: Stop stack and remove volumes
         if: always()
         run: make clean
@@ -48,6 +50,8 @@ jobs:
         run: make up
       - name: Wait for stack readiness
         run: make smoke
+      - name: Validate running service set
+        run: make validate-stack
       - name: Install Newman
         run: npm install --no-save --no-package-lock newman@6
       - name: Run Newman collection

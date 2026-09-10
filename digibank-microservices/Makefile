@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f docker-compose.yml
 MVN := mvn -B -f pom.xml
 
-.PHONY: help build test package image-build up down restart status logs smoke newman-scan zap-scan clean
+.PHONY: help build test package image-build up down restart status logs smoke validate-stack newman-scan zap-scan clean
 
 help: ## Show available microservice commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -36,6 +36,9 @@ logs: ## Follow logs from all microservices
 
 smoke: ## Verify gateway, registry, config, and service endpoints
 	./scripts/smoke-test.sh
+
+validate-stack: ## Verify every Compose service is running
+	./scripts/validate-stack.sh
 
 newman-scan: ## Replay the API security collection against the local stack
 	../dast/postman/newman-run.sh --env local --informational

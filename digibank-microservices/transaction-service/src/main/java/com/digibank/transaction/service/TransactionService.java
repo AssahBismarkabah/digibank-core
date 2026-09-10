@@ -31,9 +31,6 @@ public class TransactionService {
                 (saved, failure) -> accountClient.compensateBalance(request.accountId(), request.amount(), operation));
         return response(completed);
     }
-    @Transactional(readOnly = true) public List<TransactionResponse> findAll() { return repository.findAll().stream().map(this::response).toList(); }
-    @Transactional(readOnly = true) public TransactionResponse findById(Long id) { return response(repository.findById(id).orElseThrow(() -> new EntityNotFoundException("Transaction not found"))); }
-    @Transactional(readOnly = true) public List<TransactionResponse> findByAccountId(Long id) { return repository.findByAccountIdOrderByTransactionDateDesc(id).stream().map(this::response).toList(); }
     public void delete(Long id) { if (!repository.existsById(id)) throw new EntityNotFoundException("Transaction not found"); repository.deleteById(id); }
     private TransactionResponse response(Transaction t) { return new TransactionResponse(t.getId(), t.getAccountId(), t.getAmount(), t.getTransactionType(), t.getDescription(), t.getReferenceNumber(), t.getTransactionDate()); }
 }

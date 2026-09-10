@@ -2,11 +2,21 @@ services:
   discovery-server:
     build: { context: ., dockerfile: discovery-server/Dockerfile }
     environment: { SERVER_PORT: 8761 }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/registry >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     ports: ["8761:8761"]
     networks: [digibank]
   config-server:
     build: { context: ., dockerfile: config-server/Dockerfile }
     environment: { SERVER_PORT: 8888 }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8888/config/customer-service >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     ports: ["8888:8888"]
     networks: [digibank]
   api-gateway:
