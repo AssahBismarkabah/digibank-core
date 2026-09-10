@@ -1,0 +1,63 @@
+= DigiBank DevSecOps Workshop Presentation Workspace
+
+This directory is the build workspace for the Workshop 1 dynamic security
+analysis presentation. The final deliverable will be a PDF, not a slide deck,
+so that each workshop point can include its explanation, commands, diagrams,
+screenshots and scan evidence without making the content unreadable.
+
+== Directory layout
+
+`source/`::
+  Presentation source and section content. Keep the narrative here separate
+  from raw command output.
+
+`assets/diagrams/`::
+  Architecture and security-flow diagrams used in the document.
+
+`assets/screenshots/`::
+  Readable captures of terminal output, HTTP responses, container status and
+  other local validation evidence.
+
+`assets/reports/`::
+  Selected Newman and ZAP report extracts or rendered report pages.
+
+`output/`::
+  Final PDF files only.
+
+`tmp/`::
+  Intermediate rendered pages and conversion files. This content is not part
+  of the final evidence package.
+
+== Planned document structure
+
+. Workshop context: SAST versus DAST and DigiBank's runtime attack surface.
+. Reproducible test environment and clean startup.
+. Baseline behavior before remediation.
+. Authentication, authorization and stateless session handling.
+. Input validation and controlled error responses.
+. Security headers, cache behavior and information disclosure.
+. Newman campaign design and results.
+. OWASP ZAP scan, interpretation and accepted limitations.
+. Functional regression after security changes.
+. CI/CD integration and report artifacts.
+. Objective mapping and reproducibility appendix.
+
+Each section should answer four questions:
+
+* What security concern is being demonstrated?
+* What was changed or tested in DigiBank?
+* What evidence proves the behavior?
+* Which command allows the instructor to reproduce it?
+
+== Current evidence sources
+
+* `../../work1-devsecops-practices.adoc`
+* `../dast-validation-report.adoc`
+* `../../../dast/postman/DigiBank-DAST-Security.postman_collection.json`
+* `../../../dast/reports/baseline/`
+* `../../../dast/reports/20260910-204813/`
+* `../../../dast/reports/zap-report.*`
+* `../../../digibank-microservices/Makefile`
+
+The final PDF must distinguish explanatory content from evidence. Screenshots
+support the explanation; they do not replace it.

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DigiBank Dynamic Security Analysis</title>
+<style>
+@page { size: A4; margin: 18mm 17mm 17mm; @bottom-right { content: counter(page); font-size: 9pt; color: #666; } }
+body { font-family: Arial, Helvetica, sans-serif; color: #111; line-height: 1.42; font-size: 10.5pt; }
+h1 { font-size: 28pt; line-height: 1.05; margin: 0 0 12pt; }
+h2 { font-size: 18pt; border-bottom: 2px solid #111; padding-bottom: 5pt; margin-top: 20pt; }
+h3 { font-size: 12pt; margin-bottom: 4pt; }
+p { margin: 6pt 0; }
+ul, ol { margin-top: 5pt; }
+.cover { min-height: 245mm; display: flex; flex-direction: column; justify-content: center; border-top: 10px solid #111; border-bottom: 2px solid #111; }
+.eyebrow { text-transform: uppercase; letter-spacing: 2px; font-size: 9pt; color: #555; margin-bottom: 18pt; }
+.lead { font-size: 15pt; max-width: 145mm; }
+.meta { margin-top: 35pt; color: #555; }
+.callout { border-left: 5px solid #111; background: #f0f0f0; padding: 10pt 12pt; margin: 12pt 0; }
+.evidence { border: 1px dashed #777; padding: 9pt 11pt; margin: 11pt 0; background: #fafafa; }
+.label { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 8pt; color: #555; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0 14pt; }
+th, td { border: 1px solid #999; padding: 6pt; vertical-align: top; }
+th { background: #111; color: white; text-align: left; }
+code { font-family: Menlo, monospace; font-size: 9pt; }
+pre { background: #111; color: #fff; padding: 10pt; white-space: pre-wrap; font-size: 8.5pt; }
+img.diagram { display: block; max-width: 100%; max-height: 105mm; margin: 12pt auto; }
+.pagebreak { page-break-before: always; }
+.small { color: #555; font-size: 9pt; }
+</style>
+</head>
+<body>
+<section class="cover">
+  <div class="eyebrow">UCC 152-2 - Introduction to Security in DevOps</div>
+  <h1>DigiBank Dynamic Security Analysis</h1>
+  <p class="lead">Workshop 3 presentation and evidence record</p>
+  <p class="lead">How the running banking API was observed, hardened, and revalidated through DAST.</p>
+  <p class="meta">System under test: Spring Boot microservices implementation<br>Primary boundary: API Gateway at <code>http://127.0.0.1:8080</code><br>Validation tools: Maven, Docker Compose, Newman and OWASP ZAP</p>
+</section>
+
+<section>
+<h2>1. Why DAST is needed</h2>
+<p>Static analysis examines source code and configuration before execution. Dynamic analysis complements it by interacting with the application while it is running. This matters because a system can compile, pass unit tests, and still expose an API route without authentication, return excessive technical detail, accept invalid input, or handle sessions incorrectly.</p>
+<div class="callout"><b>Central idea:</b> DAST checks what an external client can actually observe, not only what the source code appears to intend.</div>
+<p>This workshop therefore follows a before-and-after sequence: establish the runtime behavior, identify security weaknesses, apply targeted remediation, and replay the same scenarios to demonstrate the result.</p>
+<div class="evidence"><div class="label">Source basis</div> <code>docs/work1-devsecops-practices.adoc</code>, sections A3.1-A3.8 and the DAST method sections.</div>
+</section>
+
+<section class="pagebreak">
+<h2>2. Application under test</h2>
+<p>The external client does not call each business service directly. The API Gateway is the security boundary and the single entry point for the business API. Behind it, the customer, account, transaction, compliance, and notification services run as separate Compose services.</p>
+<img class="diagram" src="../assets/diagrams/07_microservices_topology.png" alt="DigiBank microservices topology">
+<p class="small">Figure 1. Runtime topology under test. The diagram shows the gateway, business services, platform services, Compose host, and persistence boundaries.</p>
+<table><tr><th>Surface</th><th>What is tested</th></tr>
+<tr><td>Gateway</td><td>Authentication, authorization, headers, cache behavior, error responses and route protection.</td></tr>
+<tr><td>Business APIs</td><td>Customer, account, transaction and compliance operations through gateway routing.</td></tr>
+<tr><td>Runtime behavior</td><td>Malformed requests, invalid values, missing resources, session behavior and information disclosure.</td></tr>
+<tr><td>Delivery path</td><td>Build, Compose startup, readiness, Newman replay and ZAP scanning.</td></tr></table>
+</section>
+
+<section>
+<h2>3. Reproducible test environment</h2>
+<p>The environment is deliberately reproducible. Maven verifies the implementation, Docker Compose starts the complete topology, smoke checks verify the endpoints, and stack validation confirms that the expected containers are running before DAST begins.</p>
+<pre>make clean
+make build
+make image-build
+make up
+make smoke
+make validate-stack
+make newman-scan
+make zap-scan</pre>
+<div class="evidence"><div class="label">Evidence to insert</div> Screenshot of <code>make status</code> or <code>docker compose ps</code>, followed by successful <code>make smoke</code> and <code>make validate-stack</code> output.</div>
+</section>
+
+<section class="pagebreak">
+<h2>4. Baseline and remediation decision</h2>
+<p>The baseline establishes the behavior before the gateway security boundary was introduced. The important observations were unauthenticated business routes, no gateway role distinction, incomplete response hardening, and no explicit cache policy for sensitive API responses.</p>
+<p>The remediation uses stateless HTTP Basic authentication at the gateway because it is simple to reproduce in the workshop and preserves the existing service topology. It is not presented as the production identity architecture.</p>
+<table><tr><th>Request condition</th><th>Expected result after remediation</th></tr>
+<tr><td>No credentials or invalid credentials</td><td><code>401 Unauthorized</code></td></tr>
+<tr><td>Valid USER on normal banking API</td><td>Request is permitted</td></tr>
+<tr><td>Valid USER on compliance API</td><td><code>403 Forbidden</code></td></tr>
+<tr><td>Valid ADMIN on compliance API</td><td>Request is permitted</td></tr>
+<tr><td>Authenticated request</td><td>No server session or session cookie</td></tr></table>
+<div class="evidence"><div class="label">Evidence sources</div> Baseline reports under <code>dast/reports/baseline/</code>; remediation in <code>api-gateway/SecurityConfig.java</code>.</div>
+</section>
+
+<section>
+<h2>5. Runtime checks and scan results</h2>
+<p>Newman expresses the expected security behavior as repeatable assertions. The security collection is divided into authentication, authorization, functional regression, input validation, error handling, information exposure, session behavior, and remediation verification.</p>
+<table><tr><th>Campaign</th><th>Result</th></tr>
+<tr><td>Functional Newman collection</td><td>24 requests, 74 assertions, 0 failures.</td></tr>
+<tr><td>Security Newman collection</td><td>12 requests, 19 assertions, 0 failures.</td></tr>
+<tr><td>OWASP ZAP baseline</td><td>0 High, 1 Medium, 0 Low, 1 Informational.</td></tr></table>
+<p>The remaining Medium ZAP alert is the expected local warning that HTTP Basic credentials are sent over plain HTTP. It is acceptable only in this local educational environment and requires TLS in production. The Informational observation concerns public static-resource cacheability; authenticated API responses receive <code>Cache-Control: no-store, private</code>.</p>
+<div class="evidence"><div class="label">Evidence to insert</div> Newman functional/security summary screenshots and the ZAP Markdown/HTML summary page.</div>
+</section>
+
+<section class="pagebreak">
+<h2>6. Deliverable mapping</h2>
+<table><tr><th>Objective</th><th>Demonstrated by</th></tr>
+<tr><td>A3.1</td><td>SAST/DAST explanation and runtime validation method.</td></tr>
+<tr><td>A3.2</td><td>Versioned Postman functional and security collections.</td></tr>
+<tr><td>A3.3</td><td>Assertions for status codes, headers, response bodies and error messages.</td></tr>
+<tr><td>A3.4</td><td>Basic authentication, role checks and stateless-session checks.</td></tr>
+<tr><td>A3.5</td><td>Baseline Newman behavior and ZAP observations.</td></tr>
+<tr><td>A3.6</td><td>Gateway authentication, authorization, headers, cache and error hardening.</td></tr>
+<tr><td>A3.7</td><td>Replayed Newman and ZAP validation after remediation.</td></tr>
+<tr><td>A3.8</td><td>Technical report, reports, screenshots and CI artifacts.</td></tr></table>
+<div class="callout"><b>Closing point:</b> The result is not simply a passing scanner run. It is a documented chain from runtime observation, to risk interpretation, to code/configuration remediation, to reproducible revalidation.</div>
+</section>
+</body>
+</html>

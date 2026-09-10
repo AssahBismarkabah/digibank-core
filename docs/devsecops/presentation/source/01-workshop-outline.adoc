@@ -1,0 +1,166 @@
+= Workshop 3 DAST Presentation Outline
+
+This is the working outline for the PDF. It is intentionally explanatory,
+not a list of screenshots. Each section will later receive selected evidence
+from `assets/` and a short reproduction command.
+
+== 1. Why runtime security analysis matters
+
+Explain the transition from SAST to DAST. SAST examines source code,
+configuration and dependencies before execution. DAST examines the running
+gateway as an external client sees it. The same banking API can compile and
+pass unit tests while still exposing unauthorized routes, verbose errors,
+weak validation or unsafe session behavior.
+
+Evidence to add:
+
+* Gateway topology diagram.
+* Workshop objective excerpt from `work1-devsecops-practices.adoc`.
+
+Reproduce with: `make up`, then `make smoke`.
+
+== 2. Test environment and attack surface
+
+Explain that the API Gateway is the external boundary and that the customer,
+account, transaction and compliance services run behind it in Docker Compose.
+The local test uses Java 21, Spring Boot 4.1.0, PostgreSQL and a reproducible
+Maven/Compose lifecycle.
+
+Evidence to add:
+
+* `docker compose ps` or `make status` screenshot.
+* Stack validation screenshot.
+* Gateway URL and public health endpoint.
+
+Reproduce with: `make clean`, `make build`, `make image-build`, `make up`.
+
+== 3. Baseline before remediation
+
+Explain what was observable before gateway enforcement: business routes had no
+authentication boundary, role separation was absent, and the response/header
+baseline was incomplete. Separate functional observations from security
+findings and scanner limitations.
+
+Evidence to add:
+
+* Baseline Newman JSON report.
+* Baseline ZAP Markdown/HTML report.
+* One representative unauthenticated HTTP response, if available.
+
+Reproduce with the preserved baseline artifacts under
+`dast/reports/baseline/`.
+
+== 4. Authentication and authorization remediation
+
+Explain why the gateway is the enforcement point. Normal banking operations
+accept `USER` or `ADMIN`; compliance and notification routes require `ADMIN`.
+Missing or invalid credentials return `401`, while valid credentials without
+the required role return `403`.
+
+Evidence to add:
+
+* Security configuration excerpt.
+* Newman authentication folder output.
+* Newman authorization folder output.
+
+Reproduce with: `make newman-scan`.
+
+== 5. Stateless session behavior
+
+Explain that HTTP Basic is used only as a reproducible workshop model. The
+gateway is stateless: it does not create a server-side login session or return
+a session cookie. Credentials are supplied on each request.
+
+Evidence to add:
+
+* Response headers showing no `Set-Cookie`.
+* Newman session-behavior result.
+
+== 6. Input validation and error handling
+
+Explain how malformed JSON, invalid identifiers, missing fields and invalid
+amounts are tested. The expected result is a controlled client error without
+stack traces, SQL details, Java class names or internal file paths.
+
+Evidence to add:
+
+* Newman input-validation output.
+* Newman error-handling output.
+* A readable controlled `400` or `404` response screenshot.
+
+== 7. Response hardening
+
+Explain the purpose of `X-Content-Type-Options`, `X-Frame-Options`,
+`Cross-Origin-Resource-Policy` and `Cache-Control: no-store, private` for
+authenticated API responses. Explain why public static resources may still
+produce scanner cacheability observations.
+
+Evidence to add:
+
+* Newman information-exposure output.
+* Header response screenshot.
+* ZAP alert detail for the remaining accepted observation.
+
+== 8. Newman campaign and result
+
+Explain the two collections: functional regression and focused security
+controls. The security collection is organized into eight categories so each
+runtime requirement is explicit and reproducible.
+
+Evidence to add:
+
+* Collection folder listing.
+* Functional report summary: 24 requests, 74 assertions, 0 failures.
+* Security report summary: 12 requests, 19 assertions, 0 failures.
+
+Reproduce with: `make newman-scan`.
+
+== 9. OWASP ZAP result and interpretation
+
+Explain that ZAP scans the externally observable gateway surface and is not a
+replacement for targeted assertions. The local scan reported no High alerts,
+one Medium HTTP Basic over plain HTTP warning, no Low alerts and one
+Informational cacheability observation. The Medium finding is accepted only
+for the local workshop and requires TLS in production.
+
+Evidence to add:
+
+* ZAP Markdown summary.
+* ZAP HTML report page showing the alert counts.
+* ZAP detail page for the accepted local limitation.
+
+Reproduce with: `make zap-scan`.
+
+== 10. Functional regression and CI/CD integration
+
+Explain that security controls were added without breaking customer, account,
+transaction, compliance or gateway health behavior. CI builds the stack,
+waits for readiness, runs smoke checks, then runs Newman and ZAP as separate
+reporting steps.
+
+Evidence to add:
+
+* Smoke result.
+* Stack validation result.
+* CI workflow excerpt showing ordering and artifact upload.
+
+== 11. Final objective mapping
+
+Close by mapping A3.1-A3.8 to the report, collections, source changes,
+baseline artifacts, revalidation results and reproducibility commands. This
+section should point to the evidence rather than repeat the full explanation.
+
+== Evidence checklist
+
+Before exporting the PDF, capture or stage:
+
+* Container status with all expected services healthy.
+* Successful smoke output.
+* Newman functional summary.
+* Newman security summary.
+* One `401` response.
+* One `403` response.
+* One controlled validation/error response.
+* No-session-cookie response headers.
+* ZAP summary and accepted-finding detail.
+* CI workflow ordering and artifact upload excerpt.

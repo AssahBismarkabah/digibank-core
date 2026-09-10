@@ -54,8 +54,9 @@ Three environment files share the same key set (`baseUrl`, seeded ids,
 | dev   | `DigiBank-dev.postman_environment.json`   | `https://dev.digibank.internal` |
 | prod  | `DigiBank-prod.postman_environment.json`  | `https://api.digibank.example` |
 
-`authToken` is an optional, disabled-by-default placeholder for when an auth
-mechanism is added; none is required today.
+The local environment contains workshop credentials for the `USER` and
+`ADMIN` roles. Production credentials must be supplied through deployment
+secrets or environment variables and must not be committed.
 
 ### Versioned runner (recommended)
 
@@ -63,16 +64,21 @@ mechanism is added; none is required today.
 environments and produces timestamped CLI/JSON/HTML reports under
 `dast/reports/<timestamp>/` (with a `dast/reports/latest` symlink).
 
+The runner executes the functional regression collection and
+`DigiBank-DAST-Security.postman_collection.json`. The security collection is
+organized into eight workshop folders: authentication, authorization,
+functional regression, input validation, error handling, information
+exposure, session behavior, and remediation verification.
+
 ```bash
 make newman-scan                            # replay local through the gateway
 ./dast/postman/newman-run.sh              # replay local (default)
 ./dast/postman/newman-run.sh --env dev    # replay dev target
-./dast/postman/newman-run.sh --env prod --informational
+./dast/postman/newman-run.sh --env prod
 ```
 
-`--informational` exits `0` even if assertions fail (the non-blocking CI
-posture until the hardening tickets land). Without it, the script exits with
-Newman's pass/fail status.
+The runner exits non-zero when either collection has failed assertions. Reports
+are still written before the exit so CI can upload them.
 
 ### One-off Newman commands
 
@@ -146,7 +152,7 @@ Use the versioned runner (recommended):
 
 ```bash
 ./dast/postman/newman-run.sh --env local           # blocking: exits 1 on failed assertions
-./dast/postman/newman-run.sh --env local --informational   # always exits 0
+./dast/postman/newman-run.sh --env local                   # fails on assertion failures
 ```
 
 Or Newman directly:
@@ -208,11 +214,10 @@ The microservice workflow contains two security jobs in `.github/workflows/ci.ym
 | `dast-newman` | Newman | After `build-test-smoke` |
 | `dast-zap`    | OWASP ZAP baseline | After `dast-newman` |
 
-Both jobs upload their reports as GitHub Actions artefacts.
-By default, findings are **informational** while the baseline is being
-established. Newman uses informational mode and ZAP runs with `fail_action:
-false`. Promote findings to blocking only after the corresponding remediation
-tickets are agreed and the workflow policy is changed deliberately.
+Both jobs upload their reports as GitHub Actions artefacts. Newman
+authentication and authorization failures are blocking. ZAP continues to
+report low-risk and educational findings without failing the workflow until
+they are reviewed and assigned an explicit remediation decision.
 
 ```
 The build, container smoke test, Newman replay, and ZAP baseline are separate

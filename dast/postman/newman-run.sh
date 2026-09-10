@@ -11,13 +11,11 @@
 # Usage:
 #   ./dast/postman/newman-run.sh                     # default: local
 #   ./dast/postman/newman-run.sh --env dev
-#   ./dast/postman/newman-run.sh --env prod --informational
+#   ./dast/postman/newman-run.sh --env prod
 #   ENV=dev ./dast/postman/newman-run.sh
 #
 # Options:
 #   --env <local|dev|prod>   Which environment JSON to use (default: local).
-#   --informational          Exit 0 even if assertions fail (non-blocking CI
-#                            posture until the hardening tickets land).
 # =============================================================================
 
 set -euo pipefail
@@ -25,10 +23,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 COLLECTION="$SCRIPT_DIR/DigiBank-DAST-Validation.postman_collection.json"
+SECURITY_COLLECTION="$SCRIPT_DIR/DigiBank-DAST-Security.postman_collection.json"
 REPORTS_DIR="$PROJECT_ROOT/dast/reports"
 
 ENV_NAME="local"
-INFORMATIONAL=0
 
 # --- arg parsing ------------------------------------------------------------
 
@@ -37,10 +35,6 @@ while [ $# -gt 0 ]; do
         --env)
             ENV_NAME="$2"
             shift 2
-            ;;
-        --informational)
-            INFORMATIONAL=1
-            shift
             ;;
         *)
             echo "Unknown argument: $1" >&2
@@ -95,27 +89,41 @@ if html_reporter_available; then
     fi
 fi
 
-# Capture Newman's exit code and continue so reports/artefacts are still written.
+run_collection() {
+    local collection="$1"
+    local report_prefix="$2"
+    local rc=0
+    local html_export=""
+    if [ -n "$HTML_EXPORT" ]; then
+        html_export="--reporter-html-export $RUN_DIR/${report_prefix}.html"
+    fi
+    NODE_PATH="${NODE_PATH_REPORTER:-}${NODE_PATH:+:$NODE_PATH}" \
+    npx --yes newman run "$collection" \
+        --environment "$ENVIRONMENT" \
+        --reporters "$REPORTERS" \
+        --reporter-json-export "$RUN_DIR/${report_prefix}.json" $html_export \
+        || rc=$?
+    return "$rc"
+}
+
+# Run functional regression and focused security controls separately so the
+# report identifies which part of the DAST campaign failed.
 RC=0
-NODE_PATH="${NODE_PATH_REPORTER:-}${NODE_PATH:+:$NODE_PATH}" \
-npx --yes newman run "$COLLECTION" \
-    --environment "$ENVIRONMENT" \
-    --reporters "$REPORTERS" \
-    --reporter-json-export "$RUN_DIR/newman-report.json" $HTML_EXPORT \
-    || RC=$?
+run_collection "$COLLECTION" "functional-newman-report" || RC=$?
+SECURITY_RC=0
+run_collection "$SECURITY_COLLECTION" "security-newman-report" || SECURITY_RC=$?
 
 # Keep a stable "latest" report path for easy tooling/human consumption.
 rm -rf "$REPORTS_DIR/latest"
 ln -s "$RUN_TS" "$REPORTS_DIR/latest"
 
 if [ -n "$HTML_EXPORT" ]; then
-    echo "  [INFO]  HTML report written to $RUN_DIR/newman-report.html"
+    echo "  [INFO]  HTML reports written to $RUN_DIR"
 fi
-echo "  [INFO]  JSON report written to $RUN_DIR/newman-report.json"
+echo "  [INFO]  Functional report: $RUN_DIR/functional-newman-report.json"
+echo "  [INFO]  Security report: $RUN_DIR/security-newman-report.json"
 
-if [ "$INFORMATIONAL" -eq 1 ]; then
-    echo "  [INFO]  Informational mode: assertion failures do not fail the run."
-    exit 0
+if [ "$RC" -ne 0 ]; then
+    exit "$RC"
 fi
-
-exit "$RC"
+exit "$SECURITY_RC"

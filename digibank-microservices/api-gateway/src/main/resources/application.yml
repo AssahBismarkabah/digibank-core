@@ -1,6 +1,15 @@
 server.port: ${SERVER_PORT:8080}
 spring.application.name: api-gateway
 
+security:
+  users:
+    user:
+      username: ${GATEWAY_USER_USERNAME:user}
+      password: ${GATEWAY_USER_PASSWORD:changeit-user}
+    admin:
+      username: ${GATEWAY_ADMIN_USERNAME:admin}
+      password: ${GATEWAY_ADMIN_PASSWORD:changeit-admin}
+
 services:
   customer-url: ${CUSTOMER_SERVICE_URL:http://localhost:8081}
   account-url: ${ACCOUNT_SERVICE_URL:http://localhost:8082}

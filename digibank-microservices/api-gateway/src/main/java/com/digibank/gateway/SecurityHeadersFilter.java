@@ -19,6 +19,12 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
         response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("X-Frame-Options", "DENY");
+        response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+        if (request.getRequestURI().startsWith("/api/")) {
+            response.setHeader("Cache-Control", "no-store, private");
+            response.setHeader("Pragma", "no-cache");
+        }
         filterChain.doFilter(request, response);
     }
 }

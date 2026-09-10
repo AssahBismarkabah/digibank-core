@@ -1,0 +1,141 @@
+{
+  "info": {
+    "name": "DigiBank DAST Security Controls",
+    "description": "Focused runtime checks for authentication, authorization, stateless sessions, and response hardening.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "01-authentication",
+      "item": [
+        {
+          "name": "Unauthenticated business request returns 401",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/customers" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('returns 401', () => pm.response.to.have.status(401));",
+            "pm.test('no session cookie', () => pm.expect(pm.response.headers.get('Set-Cookie')).to.be.undefined);"
+          ]}}]
+        },
+        {
+          "name": "Invalid credentials return 401",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Basic invalid" }], "url": "{{baseUrl}}/api/customers" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('returns 401', () => pm.response.to.have.status(401));",
+            "pm.test('no internal disclosure', () => pm.expect(pm.response.text()).to.not.match(/Exception|stack|com\\.digibank/i));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "02-authorization",
+      "item": [
+        {
+          "name": "USER can access normal business API",
+          "request": { "method": "GET", "auth": { "type": "basic", "basic": [{ "key": "username", "value": "{{gatewayUserUsername}}", "type": "string" }, { "key": "password", "value": "{{gatewayUserPassword}}", "type": "string" }] }, "url": "{{baseUrl}}/api/customers" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('USER is not forbidden', () => pm.expect(pm.response.code).to.not.eql(403));"
+          ]}}]
+        },
+        {
+          "name": "USER cannot access compliance API",
+          "request": { "method": "GET", "auth": { "type": "basic", "basic": [{ "key": "username", "value": "{{gatewayUserUsername}}", "type": "string" }, { "key": "password", "value": "{{gatewayUserPassword}}", "type": "string" }] }, "url": "{{baseUrl}}/api/compliance" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('returns 403', () => pm.response.to.have.status(403));"
+          ]}}]
+        },
+        {
+          "name": "ADMIN can access compliance API",
+          "request": { "method": "GET", "auth": { "type": "basic", "basic": [{ "key": "username", "value": "{{gatewayAdminUsername}}", "type": "string" }, { "key": "password", "value": "{{gatewayAdminPassword}}", "type": "string" }] }, "url": "{{baseUrl}}/api/compliance" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('ADMIN is not forbidden', () => pm.expect(pm.response.code).to.not.eql(403));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "03-functional-regression",
+      "item": [
+        {
+          "name": "Health endpoint remains public",
+          "request": { "method": "GET", "url": "{{baseUrl}}/actuator/health" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('health is public', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "Root endpoint remains public",
+          "request": { "method": "GET", "url": "{{baseUrl}}/" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('root is public', () => pm.response.to.have.status(200));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "04-input-validation",
+      "item": [
+        {
+          "name": "Malformed JSON is rejected without disclosure",
+          "request": { "method": "POST", "auth": { "type": "basic", "basic": [{ "key": "username", "value": "{{gatewayUserUsername}}", "type": "string" }, { "key": "password", "value": "{{gatewayUserPassword}}", "type": "string" }] }, "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{malformed" }, "url": "{{baseUrl}}/api/customers" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('returns a client error', () => pm.expect(pm.response.code).to.be.oneOf([400, 415]));",
+            "pm.test('no stack trace', () => pm.expect(pm.response.text()).to.not.match(/Exception|stack|com\\.digibank/i));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "05-error-handling",
+      "item": [
+        {
+          "name": "Missing resource uses controlled response",
+          "request": { "method": "GET", "auth": { "type": "basic", "basic": [{ "key": "username", "value": "{{gatewayUserUsername}}", "type": "string" }, { "key": "password", "value": "{{gatewayUserPassword}}", "type": "string" }] }, "url": "{{baseUrl}}/api/customers/999999999" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('returns not found or downstream unavailable', () => pm.expect(pm.response.code).to.be.oneOf([404, 502, 503]));",
+            "pm.test('no internal details', () => pm.expect(pm.response.text()).to.not.match(/Exception|stack|com\\.digibank|select /i));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "06-information-exposure",
+      "item": [
+        {
+          "name": "Health response has security headers",
+          "request": { "method": "GET", "url": "{{baseUrl}}/actuator/health" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('content type protection', () => pm.expect(pm.response.headers.get('X-Content-Type-Options')).to.eql('nosniff'));",
+            "pm.test('frame protection', () => pm.expect(pm.response.headers.get('X-Frame-Options')).to.eql('DENY'));",
+            "pm.test('cross-origin policy', () => pm.expect(pm.response.headers.get('Cross-Origin-Resource-Policy')).to.eql('same-origin'));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "07-session-behavior",
+      "item": [
+        {
+          "name": "Authenticated request is stateless",
+          "request": { "method": "GET", "auth": { "type": "basic", "basic": [{ "key": "username", "value": "{{gatewayUserUsername}}", "type": "string" }, { "key": "password", "value": "{{gatewayUserPassword}}", "type": "string" }] }, "url": "{{baseUrl}}/api/customers" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('no session cookie is created', () => pm.expect(pm.response.headers.get('Set-Cookie')).to.be.undefined);"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "08-remediation-verification",
+      "item": [
+        {
+          "name": "Authentication remains enforced after remediation",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/customers" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('authentication remains enforced', () => pm.response.to.have.status(401));",
+            "pm.test('no internal disclosure', () => pm.expect(pm.response.text()).to.not.match(/Exception|stack|com\\.digibank/i));"
+          ]}}]
+        }
+      ]
+    }
+  ]
+}

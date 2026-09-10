@@ -56,7 +56,7 @@ jobs:
         run: npm install --no-save --no-package-lock newman@6
       - name: Run Newman collection
         working-directory: dast
-        run: ./postman/newman-run.sh --env local --informational
+        run: ./postman/newman-run.sh --env local
       - name: Upload Newman reports
         if: always()
         uses: actions/upload-artifact@v4

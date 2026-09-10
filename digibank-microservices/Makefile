@@ -41,7 +41,7 @@ validate-stack: ## Verify every Compose service is running
 	./scripts/validate-stack.sh
 
 newman-scan: ## Replay the API security collection against the local stack
-	../dast/postman/newman-run.sh --env local --informational
+	../dast/postman/newman-run.sh --env local
 
 zap-scan: ## Run an OWASP ZAP baseline scan against the local gateway
 	@command -v docker >/dev/null 2>&1 || { echo "Docker is required for the ZAP scan" >&2; exit 1; }

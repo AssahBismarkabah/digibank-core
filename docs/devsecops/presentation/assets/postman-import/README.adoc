@@ -1,0 +1,29 @@
+= Postman Import Files
+
+Import these files into Postman while the DigiBank Compose stack is running.
+
+== Import order
+
+. Import `DigiBank-local.postman_environment.json`.
+. Import `DigiBank-DAST-Security.postman_collection.json`.
+. Import `DigiBank-DAST-Validation.postman_collection.json`.
+. Select `DigiBank-local` as the active environment.
+
+The gateway must be available at `http://127.0.0.1:8080`.
+
+== Collections
+
+`DigiBank-DAST-Security`::
+  Authentication, authorization, validation, error handling, headers and
+  stateless-session checks.
+
+`DigiBank-DAST-Validation`::
+  Customer, account, transaction and compliance functional flows.
+
+Start the stack and verify readiness before opening Postman:
+
+[source,shell]
+----
+make up
+make smoke
+----

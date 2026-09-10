@@ -1,0 +1,181 @@
+= DigiBank Dynamic Security Validation Report
+:doctype: article
+:toc:
+:sectanchors:
+
+== Workshop Context
+
+This report documents the runtime security validation required by
+`work1-devsecops-practices.adoc`. Static analysis examines source code and
+configuration before execution. DAST complements it by sending requests to a
+running DigiBank system and evaluating the externally observable responses.
+
+The system under test is the microservices implementation. The API Gateway is
+the external entry point; customer, account, transaction and compliance
+services remain internal Compose services.
+
+== Test Environment
+
+The validation uses Java 21, Spring Boot 4.1.0, Maven, Docker Compose and
+PostgreSQL. The local gateway is available at `http://127.0.0.1:8080`.
+
+Public endpoints are `/` and `/actuator/health`. Business endpoints require
+HTTP Basic authentication at the gateway:
+
+* `USER`: normal banking API access.
+* `ADMIN`: normal banking access plus compliance and notification access.
+
+Passwords are supplied through `GATEWAY_USER_PASSWORD` and
+`GATEWAY_ADMIN_PASSWORD`. The repository defaults are for local education only.
+
+== DAST Method
+
+. Preserve a pre-remediation Newman and ZAP baseline.
+. Build the application and images.
+. Start the Compose stack and verify readiness.
+. Replay functional and security collections with Newman.
+. Run the OWASP ZAP baseline scan against the gateway.
+. Analyze the externally visible findings.
+. Apply gateway authentication, authorization and response hardening.
+. Replay the same collections.
+. Compare the baseline and remediated reports.
+
+The reproducible command sequence is:
+
+[source,shell]
+----
+make clean
+make build
+make image-build
+make up
+make smoke
+make validate-stack
+make newman-scan
+make zap-scan
+----
+
+== Baseline Findings
+
+The pre-remediation reports are stored under `dast/reports/baseline/`.
+
+The baseline campaign is used to record the actual behavior before security
+enforcement. Findings are categorized as functional behavior, security
+behavior, scanner observations, or accepted educational limitations.
+
+[options="header"]
+|===
+| Finding | Runtime observation | Risk | Evidence
+| B-01 | Business API routes were reachable without gateway authentication. | Any caller could reach exposed operations. | Baseline Newman report
+| B-02 | No role distinction existed at the gateway. | Sensitive compliance operations had no gateway authorization boundary. | Baseline API behavior
+| B-03 | Some not-found/error paths could expose business details. | External callers could learn implementation or resource information. | Newman response assertions
+| B-04 | The gateway exposed only a partial security-header baseline. | Browser and proxy protections were incomplete. | Baseline ZAP report
+| B-05 | Sensitive API responses did not explicitly disable caching. | Shared caches could retain user-specific responses. | Baseline ZAP report
+|===
+
+== Remediation
+
+The API Gateway now uses stateless Spring Security HTTP Basic authentication.
+Business routes require `USER` or `ADMIN`; compliance and notification routes
+require `ADMIN`. Health and root endpoints remain public for orchestration and
+readiness checks.
+
+The gateway also adds `X-Content-Type-Options`, `X-Frame-Options`,
+`Cross-Origin-Resource-Policy`, and no-store cache directives for API
+responses. Existing generic error handling and malformed-request handling are
+retained and exercised through the security collection.
+
+The authentication model is intentionally suitable for a local workshop. It
+does not represent a production identity provider, OAuth2 deployment, or TLS
+termination strategy.
+
+== Revalidation
+
+`DigiBank-DAST-Validation.postman_collection.json` verifies authenticated
+functional regression. `DigiBank-DAST-Security.postman_collection.json` covers
+the eight workshop categories:
+
+* authentication
+* authorization
+* functional regression
+* input validation
+* error handling
+* information exposure
+* session behavior
+* remediation verification
+
+The security checks verify that missing credentials return `401`, insufficient
+roles return `403`, valid roles are accepted, public health endpoints remain
+available, malformed input does not disclose internals, expected headers are
+present, and no session cookie is created.
+
+The Newman runner writes separate functional and security JSON/HTML reports in
+`dast/reports/<timestamp>/`. It exits non-zero if either collection fails.
+
+The latest local replay completed successfully:
+
+* Functional collection: 24 requests, 74 assertions, 0 failures.
+* Security collection: 12 requests, 19 assertions, 0 failures.
+* Authentication: missing and invalid credentials returned `401`.
+* Authorization: a `USER` request to compliance returned `403`; an `ADMIN`
+  request was accepted.
+* Input and error handling: malformed JSON and unknown resources returned
+  controlled `4xx` responses without stack traces or internal class names.
+* Session behavior: authenticated requests did not create a session cookie.
+
+The ZAP report is generated separately by `make zap-scan`. ZAP findings must be
+compared with the baseline rather than treated as an automatic claim that the
+application has no security risk.
+
+The latest local ZAP baseline reported zero High alerts, one Medium alert, zero
+Low alerts and one Informational alert. The Medium alert is the expected local
+HTTP Basic Auth over plain HTTP warning; production deployment must use TLS.
+The Informational alert concerns cacheability of the public root and static
+resource responses, not authenticated banking API responses, which receive
+`Cache-Control: no-store, private`.
+
+== Functional Regression
+
+Security enforcement must not break normal DigiBank behavior. The validation
+therefore retains checks for customer, account, transaction and compliance
+flows, gateway routing, public health checks, and complete Compose readiness.
+
+== CI Evidence
+
+The GitHub Actions workflow executes build and tests first, then image build,
+Compose startup, smoke checks and stack validation. The Newman job runs after
+that readiness gate. The ZAP job runs after Newman. Newman and ZAP reports are
+uploaded as independent artifacts, including when a job fails.
+
+Newman authentication and authorization failures are blocking. ZAP low-risk
+and informational findings remain visible in artifacts while they are reviewed
+and assigned an explicit remediation decision.
+
+== Accepted Risks And Limitations
+
+* The workshop uses a single-host Docker Compose deployment.
+* HTTP Basic Auth is a local educational security model.
+* Authentication is stateless and does not create server sessions.
+* There is no production identity provider or OAuth2/OIDC integration.
+* Local validation does not provide production TLS termination.
+* Default local passwords must be replaced through environment variables in a
+  real deployment.
+* ZAP reports a Medium local-only warning because HTTP Basic Auth is exercised
+  over plain HTTP; this is not acceptable for production traffic and is why the
+  workshop scope is explicitly local.
+* Informational cacheability observations for public static resources remain
+  visible in the report and are not treated as sensitive API data.
+
+== Workshop Objective Mapping
+
+  [cols="1,4", options="header"]
+|===
+| Objective | Evidence
+| A3.1 | This report's SAST/DAST explanation and runtime method.
+| A3.2 | Versioned functional and security Postman collections.
+| A3.3 | Newman assertions and captured HTTP response behavior.
+| A3.4 | Basic authentication, role checks and stateless-session checks.
+| A3.5 | Baseline Newman observations and ZAP reports.
+| A3.6 | Gateway security configuration, headers, cache and error hardening.
+| A3.7 | Post-remediation Newman and ZAP replay.
+| A3.8 | This report, versioned reports, CI artifacts and reproducible commands.
+|===
