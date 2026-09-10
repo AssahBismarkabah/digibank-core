@@ -9,7 +9,15 @@ check() {
   local name="$1"
   local url="$2"
   printf 'Checking %-16s %s\n' "$name" "$url"
-  curl --fail --silent --show-error "$url" >/dev/null
+  local attempt
+  for attempt in $(seq 1 30); do
+    if curl --fail --silent --show-error --max-time 5 "$url" >/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "Smoke check failed after 60 seconds: $url" >&2
+  return 1
 }
 
 check gateway-health "${BASE_URL}/actuator/health"
