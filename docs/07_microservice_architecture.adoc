@@ -1,0 +1,4851 @@
+= Cloud Architecture
+Lab 4: Designing a microservices architecture for Digi Bank with Spring Boot
+:doctype: book
+:author: Engineer Willy Damtchou
+:revdate: June 2026
+:toc:
+:sectanchors:
+:source-highlighter: highlight.js
+:icons: font
+
+// Faithful AsciiDoc conversion of the supplied PDF.
+// Decorative PDF rules, footer bands, and printed page numbers are represented by traceability comments.
+
+== Source document information
+
+The source document is titled *Cloud Architecture* and is identified as *Lab 4: Designing a microservices architecture for Digi Bank with Spring Boot*. It belongs to the *Cloud Computing Professional License* at the *University of the Mountains*. The document credits *Engineer Willy Damtchou* and is dated *June 2026*.
+
+toc::[]
+
+// PDF page 1
+== Cover-page transcription
+
+Cloud Architecture
+
+Lab 4: Designing a microservices architecture for Digi Bank with Spring Boot
+
+Cloud Computing Professional License
+
+University of the Mountains
+
+By Engineer Willy Damtchou
+
+June 2026
+
+// PDF page 2; printed page 1
+== Part I: Implementation of the Microservices Architecture
+
+=== Context
+
+In workshop 3, students built a first usable version of Digi Bank as a modular monolith using Spring Boot, PostgreSQL, Maven, a WAR package, and deployment on WildFly. This achievement allowed them to stabilize the business scope of the core project, validate the main entities, expose REST endpoints, implement unit tests, and prepare a coherent technical foundation for future architectural evolution.
+This workshop proposes a transition to a microservices architecture. The goal is no longer to group all functions into a single application deployed as a single unit, but to distribute business responsibilities across several autonomous services, each responsible for a specific area of the banking system. This evolution addresses concrete needs for availability, independent deployment, resilience, scalability, and more granular maintenance.
+Digi Bank retains the same core functionality: customer management, account management, transaction management, compliance monitoring, notifications, and application entry point. However, execution now relies on a constellation of distinct Spring Boot services, orchestrated with Docker, managed by GitHub Actions, and structured according to the microservices principles covered in the course. The project remains intentionally educational: it demonstrates the fundamentals of a distributed architecture without veering into excessive industrial complexity.
+=== Scenario
+
+Digi Bank's technical team wants to evolve the platform towards a more flexible and modern architecture. The modular monolith implemented in previous workshops validated the domain, but it shows its limitations when it comes to independently deploying certain functions, isolating faults, or upgrading a module without redeploying the entire system.
+
+// PDF page 3; printed page 2
+In this new context, developers must break down the application into separate services, expose consistent REST APIs, organize inter-service communication, manage the persistence of each service, and prepare a reproducible containerized deployment. Your role is to produce a first stable, readable, and directly usable technical version of Digi Bank as a microservice, with a documented, phased implementation strategy.
+=== Workshop objectives
+
+At the end of this workshop, the student should be able to:
+* A4.1: Analyze a business need and deduce coherent service boundaries.
+* A4.2: Design a microservices architecture adapted to Digi Bank
+* A4.3: Create multiple standalone Spring Boot projects
+* A4.4: Configure PostgreSQL for a service-based database model
+* A4.5: Implement REST endpoints in each service
+* A4.6: Implement interdepartmental calls
+* A4.7: Introduce an API Gateway as a single entry point
+* A4.8: Containerizing services with Docker
+* A4.9: Automating build and deployment with GitHub Actions
+* A4.10: Apply the relevant microservices patterns to the Digi Bank case.
+=== Resources provided
+
+**The students have the following materials to complete the workshop:**
+
+* The Digi Bank overarching project and its functional framework;
+* Workshop 2, which laid the foundations for the modular Jakarta EE monolith;
+* Workshop 3, which provided a consistent Spring Boot implementation;
+* The course on cloud architecture, monolithic architectures and modular structuring;
+* The fundamental principles of microservices, containerization, and CI/CD automation.
+
+// PDF page 4; printed page 3
+=== Technical prerequisites
+
+**The technical prerequisites are as follows:**
+
+* JDK 17 or compatible version
+* Apache Maven
+* PostgreSQL
+* Docker and Docker Compose
+* Git
+* A GitHub / GitLab account
+* IntelliJ IDEA or Visual Studio Code
+* A machine powerful enough to run multiple services in parallel.
+=== Workshop pedagogy
+
+The workshop follows a progressive structure. It begins with environment preparation, then defines the functional breakdown, before creating the core services, adding orchestration, and finally preparing for containerization and automation. This progression allows students to understand that microservices architecture is not just a technical choice, but a way to organize the system around independent business responsibilities.
+In the case of Digi Bank, this approach is particularly interesting because it allows us to illustrate the real tensions of a distributed banking system: coordination of operations, data consistency, fault tolerance, isolation of critical functionalities and supervision of exchanges.
+
+// PDF page 5; printed page 4
+=== Target architecture
+
+**The target architecture is based on the following components:**
+
+* API gateway: single entry point for the application
+* customer service: customer management
+* account-service: account management
+* Transaction service: financial operations management
+* compliance service: compliance rules
+* notification service: business or technical notifications
+* discovery-server: service discovery
+* config-server : externalized configuration
+* a PostgreSQL database per service
+* Docker Compose orchestration
+* a GitHub Actions pipeline for building and validation.
+The logic of the system remains simple to read: the client calls the gateway, the gateway forwards the request to the correct service, each service communicates with its own database, and critical services communicate with each other via explicit calls or appropriate coordination mechanisms.
+=== Functional view
+
+**Digi Bank should allow us to illustrate the following functionalities:**
+
+* Customer creation and consultation;
+* Account creation and consultation;
+* Execution and consultation of transactions;
+* Compliance validation prior to processing;
+* Sending notifications after sensitive operations;
+* Unified access via the Gateway API;
+* Supervision of distributed behavior across the studied patterns.
+
+// PDF page 6; printed page 5
+=== 1. Environmental preparation
+
+Before developing Digi Bank using microservices, the student must have a complete, consistent working environment ready to run multiple applications in parallel. The goal of this phase is to avoid technical roadblocks when the services are launched separately, connected to each other, and tested in Docker.
+=== 1.1 Installation of tools
+
+**Install or check the following components:**
+
+* Java JDK 17
+* Apache Maven
+* PostgreSQL
+* Docker Desktop or Docker Engine
+* Docker Compose
+* Git
+* IntelliJ IDEA Community/Ultimate or Visual Studio Code
+* A working GitHub/Gitlab account
+* Postman for testing APIs.
+These tools form the technical basis of the workshop. Java and Maven are used to build the services, PostgreSQL ensures persistence, Docker enables reproducible execution, and GitHub Actions will prepare the automation of the delivery chain.
+=== 1.2 Basic Checks
+
+**The student must verify the installation with the following commands:**
+
+[source,text]
+----
+Java -version
+----
+[source,text]
+----
+mvn -version
+----
+[source,text]
+----
+git --version
+----
+[source,text]
+----
+psql --version
+----
+[source,text]
+----
+docker --version
+----
+
+// PDF page 7; printed page 6
+[source,text]
+----
+docker compound version
+----
+The results should confirm that the tools are correctly detected by the system and usable without additional configuration. If a command fails, the environment must be corrected before development begins.
+[source,text]
+----
+user@ca:4f:12:a0:b3:c1 ~ % Java -version
+----
+[source,text]
+----
+mvn -version
+----
+[source,text]
+----
+git --version
+----
+[source,text]
+----
+psql --version
+----
+[source,text]
+----
+docker --version
+----
+[source,text]
+----
+docker compound version
+----
+[source,text]
+----
+Java version "17.0.16" 2025-07-15 LTS
+----
+[source,text]
+----
+Java(TM ) SE Runtime Environment ( build 17.0.16+12-LTS-247 )
+----
+(sharing )
+[source,text]
+----
+Java   HotSpot   (   TM   )   64-Bit     Server   VM   (build   17.0.16+12-LTS-247,   mixed   fashion,
+----
+Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b)
+Maven home: /opt/homebrew/Cellar/maven/3.9.11/libexec
+/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home
+[source,text]
+----
+Java      version:            17.0.16,       vendor:        Oracle       Corporation,         runtime:
+----
+Default local: fr_FR, platform encoding: UTF-8
+BONE name: "mac os x", version: "26.5.1", arch: "aarch64", family: "mac"
+[source,text]
+----
+git version 2.50.1 (Apple Git-155 )
+----
+[source,text]
+----
+psql (PostgreSQL) 18.4 ( Homebrew )
+----
+[source,text]
+----
+Docker version 28.5.1, build e180ab8
+----
+[source,text]
+----
+Docker Compound version v2.40.3-desktop.1
+----
+
+// PDF page 8; printed page 7
+[source,text]
+----
+user@ca:4f:12:a0:b3:c1 ~ %
+----
+=== 1.3 Expected Result
+
+**The local environment must be capable of:**
+
+* Compiling a Spring Boot project
+* Run multiple services simultaneously
+* Starting PostgreSQL databases
+* Building and launching Docker containers
+* Testing REST endpoints locally.
+=== 2. IDE configuration
+
+The development environment must be prepared in the chosen IDE so that the services are correctly recognized by the tool, the Maven dependencies are automatically loaded, and the tests are immediately visible.
+=== 2.1 Configuration under IntelliJ IDEA
+
+**The recommended steps are as follows:**
+
+=== 1. Open IntelliJ IDEA.
+
+=== 2. Create a new Maven project or import the existing repository.
+
+=== 3. Define the Java SDK 17.
+
+=== 4. Enable automatic import of Maven projects.
+
+=== 5. Verify the recognition of src/main/java and src/test/java.
+
+=== 6. Install or activate useful plugins for Spring, Maven, JUnit and Git.
+
+=== 2.2 Configuration under Visual Studio Code
+
+**Install the following extensions:**
+
+* Extension Pack for Java
+
+// PDF page 9; printed page 8
+* Maven for Java
+* Language Support for Java by Red Hat
+* Debugger for Java
+* Test Runner for Java
+* Spring Boot Extension Pack
+* Cucumber Gherkin support.
+It is also necessary to verify that JDK 17 is correctly referenced and that the Maven and YAML files are recognized without errors. This configuration is important because the workshop will involve several modules, services, and orchestration files.
+=== 2.3 Expected result
+
+**The IDE must enable:**
+
+* Navigate easily through each service;
+* Launch a service individually;
+* Run the unit tests;
+* Edit configuration files unambiguously;
+* Quickly identify dependency or compilation errors.
+=== 3. Domain division
+
+The first conceptual task is to transform the banking sector into independent services. In Digi Bank, the separation of components is avoided by mere technical chance: each service must correspond to an identifiable business capability.
+=== 3.1 Services retained
+
+**The chosen breakdown is as follows:**
+
+* customer service: customer management
+* account-service: account management
+
+// PDF page 10; printed page 9
+* transaction-service: transaction management
+* compliance service: compliance control
+* notification-service: notifications
+* API Gateway: Single point of entry
+* discovery-server: discovery registry
+* config-server: centralization of settings.
+=== 3.2 Business logic of each service
+
+* The customer service department manages identity and contact information.
+* The account-service handles bank accounts and their status.
+* The transaction service applies the financial operations and orchestrates the necessary validations.
+* The compliance service verifies regulatory or internal rules.
+* The notification service distributes messages related to validated or rejected operations.
+=== 3.3 Expected Result
+
+**The student must be able to explain that this breakdown allows:**
+
+* to isolate responsibilities
+* to evolve a service without breaking the entire system
+* to deploy the bricks independently
+* to better control breakdowns
+* to simplify targeted testing.
+=== 4. Detailed architectural diagram
+
+The architecture diagram must clearly show the relationships between the components. In a practical exercise, a readable diagram is as important as the code itself, as it helps to understand the path of a request and the responsibility of each component.
+
+// PDF page 11; printed page 10
+=== 4.1 Overview
+
+=== 4.2 Reading the diagram
+
+The client never accesses internal services directly. Instead, they use the API Gateway, which handles routing and cross-functional processing. Services use their own databases, avoiding tight coupling. The discovery server identifies services by logical name, and Docker Compose orchestrates everything in a reproducible local environment.
+
+// PDF page 12; printed page 11
+=== 4.3 Educational Expectations
+
+The student must understand that this architecture introduces new problems compared to the monolithic architecture: distributed coordination, partial failures, fragmented configuration, variable availability, and the need for observability. It is precisely to address these problems that microservices patterns will be studied in the remainder of the workshop.
+=== 5. Creation of the project structure
+
+=== 5.1 Organizational choices
+
+For the workshop, we've chosen a single repository containing all the services. This organization simplifies teaching, corrections, and the progressive demonstration of patterns. It allows us to centralize orchestration files, scripts, and common configurations.
+=== 5.2 General Tree Structure
+
+**The following tree structure is recommended:**
+
+
+// PDF page 13; printed page 12
+This structure makes the separation of responsibilities visible while keeping the whole thing readable for a student.
+=== 5.3 Internal structure of a service
+
+**Each Spring Boot service must follow a simple and regular internal organization:**
+
+
+// PDF page 14; printed page 13
+This homogeneity facilitates maintenance, corrections and cross-reading between services.
+=== 6. Basic Maven Structure
+
+Each service will be a standalone Maven project. This decision allows each service to be compiled, tested, and deployed separately, which aligns with the microservices philosophy.
+=== 6.1 Parent pom.xml file
+
+**A common Maven parent can be used to harmonize versions:**
+
+
+// PDF page 15; printed page 14
+[source,text]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0" >
+----
+[source,text]
+----
+<modelVersion> 4.0.0 </modelVersion>
+----
+[source,text]
+----
+<parent>
+----
+[source,text]
+----
+<groupId> org.springframework.boot </groupId>
+----
+[source,text]
+----
+<artifactId> spring-boot-starter-parent </artifactId>
+----
+[source,text]
+----
+<version> 3.4.0 </version>
+----
+[source,text]
+----
+<relativePath/>
+----
+[source,text]
+----
+</parent>
+----
+[source,text]
+----
+<groupId> com.digibank </groupId>
+----
+[source,text]
+----
+<artifactId> digibank-microservices-parent </artifactId>
+----
+[source,text]
+----
+<version> 1.0.0 </version>
+----
+[source,text]
+----
+<packaging> pom </packaging>
+----
+[source,text]
+----
+<modules>
+----
+[source,text]
+----
+<module> api-gateway </module>
+----
+[source,text]
+----
+<module> discovery-server </module>
+----
+[source,text]
+----
+<module> config-server </module>
+----
+[source,text]
+----
+<module> customer-service </module>
+----
+[source,text]
+----
+<module> account-service </module>
+----
+[source,text]
+----
+<module> transaction-service </module>
+----
+[source,text]
+----
+<module> compliance-service </module>
+----
+[source,text]
+----
+<module> notification-service </module>
+----
+
+// PDF page 16; printed page 15
+[source,text]
+----
+</modules>
+----
+[source,text]
+----
+<properties>
+----
+[source,text]
+----
+<java.version> 17 </java.version>
+----
+[source,text]
+----
+<spring.boot.version> 3.4.0 </spring.boot.version>
+----
+[source,text]
+----
+<maven.compiler.release> 17 </maven.compiler.release>
+----
+[source,text]
+----
+<project.build.sourceEncoding> UTF-8 </project.build.sourceEncoding>
+----
+[source,text]
+----
+<junit.version> 5.10.2 </junit.version>
+----
+[source,text]
+----
+<cucumber.version> 7.15.0 </cucumber.version>
+----
+[source,text]
+----
+<junit.platform.version> 1.12.2 </junit.platform.version>
+----
+[source,text]
+----
+<spring-cloud.version> 2024.0.1 </spring-cloud.version>
+----
+[source,text]
+----
+</properties>
+----
+[source,text]
+----
+</project>
+----
+This parent does not impose the business logic, but it centralizes the versions, which simplifies the evolution of the entire project.
+=== 6.2 Pom of a typical service
+
+**Each business service can declare a classic Spring Boot structure:**
+
+[source,text]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0" >
+----
+[source,text]
+----
+<modelVersion> 4.0.0 </modelVersion>
+----
+[source,text]
+----
+<parent>
+----
+
+// PDF page 17; printed page 16
+[source,text]
+----
+<groupId> com.digibank </groupId>
+----
+[source,text]
+----
+<artifactId> digibank-microservices-parent </artifactId>
+----
+[source,text]
+----
+<version> 1.0.0 </version>
+----
+[source,text]
+----
+</parent>
+----
+[source,text]
+----
+<artifactId> customer-service </artifactId>
+----
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.boot </groupId>
+----
+[source,text]
+----
+<artifactId> spring-boot-starter-web </artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.boot </groupId>
+----
+[source,text]
+----
+<artifactId> spring-boot-starter-data-jpa </artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.postgresql </groupId>
+----
+[source,text]
+----
+<artifactId> postgresql </artifactId>
+----
+[source,text]
+----
+<scope> runtime </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.junit.jupiter </groupId>
+----
+[source,text]
+----
+<artifactId> junit-jupiter </artifactId>
+----
+
+// PDF page 18; printed page 17
+[source,text]
+----
+<version> ${junit.version} </version>
+----
+[source,text]
+----
+<scope> test </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.junit.platform </groupId>
+----
+[source,text]
+----
+<artifactId> junit-platform-suite-api </artifactId>
+----
+[source,text]
+----
+<version> ${junit.platform.version} </version>
+----
+[source,text]
+----
+<scope> test </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.junit.platform </groupId>
+----
+[source,text]
+----
+<artifactId> junit-platform-suite </artifactId>
+----
+[source,text]
+----
+<version> ${junit.platform.version} </version>
+----
+[source,text]
+----
+<scope> test </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> io.cucumber </groupId>
+----
+[source,text]
+----
+<artifactId> cucumber-java </artifactId>
+----
+[source,text]
+----
+<version> ${cucumber.version} </version>
+----
+[source,text]
+----
+<scope> test </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> io.cucumber </groupId>
+----
+[source,text]
+----
+<artifactId> cucumber-junit-platform-engine </artifactId>
+----
+
+// PDF page 19; printed page 18
+[source,text]
+----
+<version> ${cucumber.version} </version>
+----
+[source,text]
+----
+<scope> test </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+</project>
+----
+Each service can then add its specific dependencies without disrupting the others.
+=== 6.3 Expected Result
+
+The student must be able to create an independent Spring Boot service, compile it with Maven and launch it without depending on another application module for its local execution.
+=== 7. Basic service configuration
+
+=== 7.1 Common Properties
+
+[source,text]
+----
+Each service must have its own application.yml file. A minimal configuration might look like
+----
+**this:**
+
+**server :**
+
+[source,text]
+----
+port : 8081
+----
+**spring :**
+
+
+// PDF page 20; printed page 19
+**application :**
+
+[source,text]
+----
+name : customer service
+----
+**datasource :**
+
+[source,text]
+----
+url : jdbc:postgresql://localhost:5432/digibank_customer_db
+----
+[source,text]
+----
+username : digibankuser
+----
+[source,text]
+----
+password : digibankpwd
+----
+[source,text]
+----
+driver-class-name : org.postgresql.Driver
+----
+**jpa :**
+
+**hibernate :**
+
+[source,text]
+----
+ddl-auto : update
+----
+**properties :**
+
+**hibernate :**
+
+[source,text]
+----
+dialect : org.hibernate.dialect.PostgreSQLDialect
+----
+=== 7.2 Creating PostgreSQL databases
+
+**We can plan for a base per service:**
+
+[source,text]
+----
+CREATE DATABASE digibank_customer_db ;
+----
+[source,text]
+----
+CREATE DATABASE digibank_account_db ;
+----
+[source,text]
+----
+CREATE DATABASE digibank_transaction_db ;
+----
+[source,text]
+----
+CREATE DATABASE digibank_compliance_db ;
+----
+[source,text]
+----
+CREATE DATABASE digibank_notification_db ;
+----
+
+// PDF page 21; printed page 20
+This separation strengthens the autonomy of the services and avoids the direct sharing of a single scheme.
+=== 7.3 Expected Result
+
+Each service must be able to start with its own dedicated database and expose its endpoints independently of the others.
+=== 8. First business implementation
+
+=== 8.1 Customer Service
+
+The customer service must allow the creation and viewing of a customer. It includes a Customer entity, a repository, a business service, and a REST controller.
+=== 8.2 Service Account
+
+The account-service manages the accounts and must be able to associate an account with a customer.
+=== 8.3 Transaction Service
+
+The transaction service records financial operations and interacts with the compliance service before validation.
+=== 8.4 Service Compliance
+
+The compliance department checks whether an amount is authorized according to the establishment's rules.
+
+// PDF page 22; printed page 21
+=== 8.5 Service Notification
+
+The notification service simulates sending a message after certain business operations.
+=== 8.6 Expected Result
+
+At this stage, the student needs to understand how the departments share responsibilities and how the first interdepartmental exchanges will be set up in the following parts of the workshop.
+=== 9. Customer Service
+
+Customer service manages Digi Bank's clients. Without a dedicated service, identity data would be mixed with account and transaction information, making system evolution more difficult and the business structure less clear. This service must allow users to create, view, modify, and list clients.
+=== 7.1 Service Structure
+
+**The recommended internal directory structure is as follows:**
+
+
+// PDF page 23; printed page 22
+=== 7.2 Main Class
+
+[source,text]
+----
+package com.digibank.customer;
+----
+[source,text]
+----
+import org.springframework.boot.SpringApplication;
+----
+[source,text]
+----
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+----
+[source,text]
+----
+@SpringBootApplication
+----
+[source,text]
+----
+public class CustomerServiceApplication {
+----
+[source,text]
+----
+public static void main (String[] args) {
+----
+SpringApplication.run(CustomerServiceApplication. class , args);
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 7.3 Customer Entity
+
+
+// PDF page 24; printed page 23
+[source,text]
+----
+package com.digibank.customer.model;
+----
+[source,text]
+----
+import jakarta.persistence.*;
+----
+[source,text]
+----
+@Entity
+----
+[source,text]
+----
+@Table (name = "customers" )
+----
+[source,text]
+----
+public class Customer {
+----
+[source,text]
+----
+@Id
+----
+[source,text]
+----
+@GeneratedValue (strategy = GenerationType.IDENTITY)
+----
+[source,text]
+----
+private Long id ;
+----
+[source,text]
+----
+@Column (nullable = false )
+----
+[source,text]
+----
+private String firstName ;
+----
+[source,text]
+----
+@Column (nullable = false )
+----
+[source,text]
+----
+private String lastName ;
+----
+[source,text]
+----
+@Column (nullable = false , unique = true )
+----
+[source,text]
+----
+private String email ;
+----
+[source,text]
+----
+public Customer () {
+----
+[source,text]
+----
+}
+----
+
+// PDF page 25; printed page 24
+email) {
+[source,text]
+----
+public Customer (String firstName, String lastName, String
+----
+[source,text]
+----
+this.firstName = firstName ;
+----
+[source,text]
+----
+this.lastName = lastName ;
+----
+[source,text]
+----
+this.email = email ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Long getId () {
+----
+[source,text]
+----
+return id ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public String getFirstName () {
+----
+[source,text]
+----
+return firstName ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public void setFirstName (String firstName) {
+----
+[source,text]
+----
+this.firstName = firstName ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public String getLastName () {
+----
+[source,text]
+----
+return lastName ;
+----
+[source,text]
+----
+}
+----
+
+// PDF page 26; printed page 25
+[source,text]
+----
+public void setLastName (String lastName) {
+----
+[source,text]
+----
+this.lastName = lastName ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public String getEmail () {
+----
+[source,text]
+----
+return email ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public void setEmail (String email) {
+----
+[source,text]
+----
+this.email = email ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 7.4 Repository CustomerRepository
+
+[source,text]
+----
+package com.digibank.customer.repository;
+----
+[source,text]
+----
+import com.digibank.customer.model.Customer;
+----
+[source,text]
+----
+import org.springframework.data.jpa.repository.JpaRepository;
+----
+JpaRepository<Customer, Long> {
+[source,text]
+----
+public interface CustomerRepository extends
+----
+
+// PDF page 27; printed page 26
+boolean existsByEmail (String email);
+[source,text]
+----
+}
+----
+=== 7.5 Business Service Customer Service
+
+[source,text]
+----
+package com.digibank.customer.service;
+----
+[source,text]
+----
+import com.digibank.customer.model.Customer;
+----
+[source,text]
+----
+import com.digibank.customer.repository.CustomerRepository;
+----
+[source,text]
+----
+import org.springframework.stereotype.Service;
+----
+[source,text]
+----
+import java.util.List;
+----
+[source,text]
+----
+import java.util.Optional;
+----
+[source,text]
+----
+@Service
+----
+[source,text]
+----
+public class CustomerService {
+----
+[source,text]
+----
+private final CustomerRepository repository ;
+----
+[source,text]
+----
+public CustomerService (CustomerRepository repository) {
+----
+this . repository = repository;
+[source,text]
+----
+}
+----
+
+// PDF page 28; printed page 27
+[source,text]
+----
+public Customer createCustomer (Customer customer) {
+----
+if ( repository .existsByEmail(customer.getEmail())) {
+exists" );
+[source,text]
+----
+throw new IllegalArgumentException( "Email already
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+return repository .save(customer);
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Optional<Customer> getCustomer (Long id) {
+----
+[source,text]
+----
+return repository .findById(id);
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public List<Customer> getAllCustomers () {
+----
+[source,text]
+----
+return repository.findAll ();
+----
+[source,text]
+----
+}
+----
+updatedCustomer) {
+[source,text]
+----
+public Customer updatedCustomer (Long id, Customer
+----
+Customer existing = repository .findById(id)
+.orElseThrow(() -> new IllegalArgumentException( "Customer not found" ));
+existing.setFirstName(updatedCustomer.getFirstName());
+existing.setLastName(updatedCustomer.getLastName());
+existing.setEmail(updatedCustomer.getEmail());
+
+// PDF page 29; printed page 28
+[source,text]
+----
+return repository .save(existing);
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 7.6 REST Controller CustomerController
+
+[source,text]
+----
+package com.digibank.customer.api;
+----
+[source,text]
+----
+import com.digibank.customer.model.Customer;
+----
+[source,text]
+----
+import com.digibank.customer.service.CustomerService;
+----
+[source,text]
+----
+import org.springframework.http.HttpStatus;
+----
+[source,text]
+----
+import org.springframework.http.ResponseEntity;
+----
+[source,text]
+----
+import org.springframework.web.bind.annotation.*;
+----
+[source,text]
+----
+@RestController
+----
+[source,text]
+----
+@RequestMapping ( "/api/customers" )
+----
+[source,text]
+----
+public class CustomerController {
+----
+[source,text]
+----
+private final CustomerService service ;
+----
+[source,text]
+----
+public CustomerController (CustomerService service) {
+----
+[source,text]
+----
+this.service = service ;
+----
+[source,text]
+----
+}
+----
+
+// PDF page 30; printed page 29
+[source,text]
+----
+@PostMapping
+----
+Customer customer) {
+[source,text]
+----
+public ResponseEntity<Customer> createCustomer ( @RequestBody
+----
+service .createCustomer(customer));
+[source,text]
+----
+return ResponseEntity.status(HttpStatus.CREATED).body(
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+@GetMapping ( "/{id}" )
+----
+id) {
+[source,text]
+----
+public ResponseEntity<Customer> findById ( @PathVariable Long
+----
+[source,text]
+----
+return service .getCustomer(id)
+----
+.map(ResponseEntity::ok)
+.orElse(ResponseEntity.notFound().build());
+[source,text]
+----
+}
+----
+[source,text]
+----
+@GetMapping
+----
+[source,text]
+----
+public ResponseEntity<?> findAll () {
+----
+[source,text]
+----
+return ResponseEntity.ok( service.getAllCustomers ());
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+@PutMapping ( "/{id}" )
+----
+[source,text]
+----
+public ResponseEntity<Customer> updateCustomer (
+@PathVariable Long id, @RequestBody Customer customer) {
+----
+customer));
+[source,text]
+----
+return ResponseEntity.ok( service.updateCustomer (id,
+----
+
+// PDF page 31; printed page 30
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 9.7 Configuring application.yml
+
+**server :**
+
+[source,text]
+----
+port : 8081
+----
+**spring :**
+
+**application :**
+
+[source,text]
+----
+name : customer service
+----
+**datasource :**
+
+[source,text]
+----
+url : jdbc:postgresql://localhost:5432/digibank_customer_db
+----
+[source,text]
+----
+username : digibankuser
+----
+[source,text]
+----
+password : digibankpwd
+----
+[source,text]
+----
+driver-class-name : org.postgresql.Driver
+----
+**jpa :**
+
+**hibernate :**
+
+[source,text]
+----
+ddl-auto : update
+----
+**properties :**
+
+**hibernate :**
+
+[source,text]
+----
+dialect : org.hibernate.dialect.PostgreSQLDialect
+----
+
+// PDF page 32; printed page 31
+=== 10. Service Account
+
+The account service represents bank accounts. Without this service, financial operations would be too closely tied to the customer database, and it would be difficult to independently change account management rules.
+=== 10.1 Service Structure
+
+=== 10.2 Main Class
+
+[source,text]
+----
+package com.digibank.account;
+----
+[source,text]
+----
+import org.springframework.boot.SpringApplication;
+----
+org.springframework.boot.autoconfigure.SpringBootApplication;
+[source,text]
+----
+import
+----
+
+// PDF page 33; printed page 32
+[source,text]
+----
+@SpringBootApplication
+----
+[source,text]
+----
+public class AccountServiceApplication {
+----
+[source,text]
+----
+public static void main (String[] args) {
+----
+SpringApplication.run(AccountServiceApplication. class , args);
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 10.3 Entity Account
+
+[source,text]
+----
+package com.digibank.account.model;
+----
+[source,text]
+----
+import jakarta.persistence.*;
+----
+[source,text]
+----
+@Entity
+----
+[source,text]
+----
+@Table (name = "accounts" )
+----
+[source,text]
+----
+public class Account {
+----
+[source,text]
+----
+@Id
+----
+[source,text]
+----
+@GeneratedValue (strategy = GenerationType.IDENTITY)
+----
+[source,text]
+----
+private Long id ;
+----
+[source,text]
+----
+@Column (nullable = false , unique = true )
+----
+[source,text]
+----
+private String accountNumber ;
+----
+
+// PDF page 34; printed page 33
+[source,text]
+----
+@Column (nullable = false )
+----
+[source,text]
+----
+private Double balance ;
+----
+[source,text]
+----
+@Column (nullable = false )
+----
+[source,text]
+----
+private Long customerId ;
+----
+[source,text]
+----
+public Account () {
+----
+[source,text]
+----
+}
+----
+customerId) {
+[source,text]
+----
+public Account (String accountNumber, Double balance, Long
+----
+this . accountNumber = accountNumber;
+[source,text]
+----
+this.balance = balance ;
+----
+this . customerId = customerId;
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Long getId () {
+----
+[source,text]
+----
+return id ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public String getAccountNumber () {
+----
+[source,text]
+----
+return accountNumber ;
+----
+[source,text]
+----
+}
+----
+
+// PDF page 35; printed page 34
+[source,text]
+----
+public void setAccountNumber (String accountNumber) {
+----
+this . accountNumber = accountNumber;
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Double getBalance () {
+----
+[source,text]
+----
+return balance ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public void setBalance (Double balance) {
+----
+[source,text]
+----
+this.balance = balance ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Long getCustomerId () {
+----
+[source,text]
+----
+return customerId ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public void setCustomerId (Long customerId) {
+----
+this . customerId = customerId;
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 10.4 Repository AccountRepository
+
+
+// PDF page 36; printed page 35
+[source,text]
+----
+package com.digibank.account.repository;
+----
+[source,text]
+----
+import com.digibank.account.model.Account;
+----
+[source,text]
+----
+import org.springframework.data.jpa.repository.JpaRepository;
+----
+JpaRepository<Account, Long> {
+[source,text]
+----
+public interface AccountRepository extends
+----
+boolean existsByAccountNumber (String accountNumber);
+[source,text]
+----
+}
+----
+=== 10.5 Business Service AccountService
+
+[source,text]
+----
+package com.digibank.account.service;
+----
+[source,text]
+----
+import com.digibank.account.model.Account;
+----
+[source,text]
+----
+import com.digibank.account.repository.AccountRepository;
+----
+[source,text]
+----
+import org.springframework.stereotype.Service;
+----
+[source,text]
+----
+import java.util.List;
+----
+[source,text]
+----
+import java.util.UUID;
+----
+[source,text]
+----
+@Service
+----
+
+// PDF page 37; printed page 36
+[source,text]
+----
+public class AccountService {
+----
+[source,text]
+----
+private final AccountRepository repository ;
+----
+[source,text]
+----
+public AccountService (AccountRepository repository) {
+----
+this . repository = repository;
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Account createAccount (Account account) {
+----
+if (account.getAccountNumber() == null || account.getAccountNumber().isBlank()) {
+account.setAccountNumber( "ACC-" + UUID.randomUUID ( ));
+[source,text]
+----
+}
+----
+if (account.getBalance() == null ) {
+account.setBalance( 0.0 );
+[source,text]
+----
+}
+----
+[source,text]
+----
+return repository .save(account);
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public List<Account> getAccounts () {
+----
+[source,text]
+----
+return repository.findAll ();
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Account getAccount (Long id) {
+----
+
+// PDF page 38; printed page 37
+[source,text]
+----
+return repository .findById(id)
+----
+.orElseThrow(() -> new IllegalArgumentException( "Account not found" ));
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 10.6 REST Controller AccountController
+
+[source,text]
+----
+package com.digibank.account.api;
+----
+[source,text]
+----
+import com.digibank.account.model.Account;
+----
+[source,text]
+----
+import com.digibank.account.service.AccountService;
+----
+[source,text]
+----
+import org.springframework.http.HttpStatus;
+----
+[source,text]
+----
+import org.springframework.http.ResponseEntity;
+----
+[source,text]
+----
+import org.springframework.web.bind.annotation.*;
+----
+[source,text]
+----
+@RestController
+----
+[source,text]
+----
+@RequestMapping ( "/api/accounts" )
+----
+[source,text]
+----
+public class AccountController {
+----
+[source,text]
+----
+private final AccountService service ;
+----
+[source,text]
+----
+public AccountController (AccountService service) {
+----
+
+// PDF page 39; printed page 38
+[source,text]
+----
+this.service = service ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+@PostMapping
+----
+Account account) {
+[source,text]
+----
+public ResponseEntity<Account> createAccount ( @RequestBody
+----
+service .createAccount(account));
+[source,text]
+----
+return ResponseEntity.status(HttpStatus.CREATED).body(
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+@GetMapping
+----
+[source,text]
+----
+public ResponseEntity<?> findAll () {
+----
+[source,text]
+----
+return ResponseEntity.ok( service.getAccounts ());
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+@GetMapping ( "/{id}" )
+----
+id) {
+[source,text]
+----
+public ResponseEntity<Account> findById ( @PathVariable Long
+----
+[source,text]
+----
+return ResponseEntity.ok( service.getAccount (id));
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 10.7 Configuring application.yml
+
+
+// PDF page 40; printed page 39
+**server :**
+
+[source,text]
+----
+port : 8082
+----
+**spring :**
+
+**application :**
+
+[source,text]
+----
+name : account-service
+----
+**datasource :**
+
+[source,text]
+----
+url : jdbc:postgresql://localhost:5432/digibank_account_db
+----
+[source,text]
+----
+username : digibankuser
+----
+[source,text]
+----
+password : digibankpwd
+----
+[source,text]
+----
+driver-class-name : org.postgresql.Driver
+----
+**jpa :**
+
+**hibernate :**
+
+[source,text]
+----
+ddl-auto : update
+----
+**properties :**
+
+**hibernate :**
+
+[source,text]
+----
+dialect : org.hibernate.dialect.PostgreSQLDialect
+----
+=== 11. Transaction Service
+
+The transaction service is the operational core of Digi Bank. Without a dedicated service, the processing of financial transactions would be fragmented and difficult to
+
+// PDF page 41; printed page 40
+secure. It is also the service that will communicate most frequently with the other components.
+=== 11.1 Service Structure
+
+=== 11.2 Main Class
+
+[source,text]
+----
+package com.digibank.transaction;
+----
+[source,text]
+----
+import org.springframework.boot.SpringApplication;
+----
+[source,text]
+----
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+----
+[source,text]
+----
+@SpringBootApplication
+----
+[source,text]
+----
+public class TransactionServiceApplication {
+----
+[source,text]
+----
+public static void main (String[] args) {
+----
+SpringApplication.run(TransactionServiceApplication. class , args);
+
+// PDF page 42; printed page 41
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 11.3 Transaction Entity
+
+[source,text]
+----
+package com.digibank.transaction.model;
+----
+[source,text]
+----
+import jakarta.persistence.*;
+----
+[source,text]
+----
+@Entity
+----
+[source,text]
+----
+@Table (name = "transactions" )
+----
+[source,text]
+----
+public class Transaction {
+----
+[source,text]
+----
+@Id
+----
+[source,text]
+----
+@GeneratedValue (strategy = GenerationType.IDENTITY)
+----
+[source,text]
+----
+private Long id ;
+----
+[source,text]
+----
+@Column (nullable = false )
+----
+[source,text]
+----
+private String type ;
+----
+[source,text]
+----
+@Column (nullable = false )
+----
+[source,text]
+----
+private Double amount ;
+----
+[source,text]
+----
+@Column (nullable = false )
+----
+
+// PDF page 43; printed page 42
+[source,text]
+----
+private Long accountId ;
+----
+[source,text]
+----
+public Transaction () {
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Transaction (String type, Double amount, Long accountId) {
+----
+[source,text]
+----
+this.type = type ;
+----
+[source,text]
+----
+this.amount = amount ;
+----
+[source,text]
+----
+this.accountId = accountId ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Long getId () {
+----
+[source,text]
+----
+return id ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public String getType () {
+----
+[source,text]
+----
+return type ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public void setType (String type) {
+----
+[source,text]
+----
+this.type = type ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Double getAmount () {
+----
+[source,text]
+----
+return amount ;
+----
+
+// PDF page 44; printed page 43
+[source,text]
+----
+}
+----
+[source,text]
+----
+public void setAmount (Double amount) {
+----
+[source,text]
+----
+this.amount = amount ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Long getAccountId () {
+----
+[source,text]
+----
+return accountId ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public void setAccountId (Long accountId) {
+----
+[source,text]
+----
+this.accountId = accountId ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 11.4 Repository TransactionRepository
+
+[source,text]
+----
+package com.digibank.transaction.repository;
+----
+[source,text]
+----
+import com.digibank.transaction.model.Transaction;
+----
+[source,text]
+----
+import org.springframework.data.jpa.repository.JpaRepository;
+----
+JpaRepository<Transaction, Long> {
+[source,text]
+----
+public interface TransactionRepository extends
+----
+[source,text]
+----
+}
+----
+
+// PDF page 45; printed page 44
+=== 11.5 Compliance Client
+
+[source,text]
+----
+package com.digibank.transaction.client;
+----
+[source,text]
+----
+import org.springframework.stereotype.Component;
+----
+[source,text]
+----
+import org.springframework.web.client.RestTemplate;
+----
+[source,text]
+----
+@Component
+----
+[source,text]
+----
+public class ComplianceClient {
+----
+[source,text]
+----
+private final RestTemplate restTemplate ;
+----
+[source,text]
+----
+public ComplianceClient (RestTemplate restTemplate) {
+----
+this . restTemplate = restTemplate;
+[source,text]
+----
+}
+----
+[source,text]
+----
+public boolean validateAmount (Double amount) {
+----
+Boolean result = restTemplate.getForObject (
+"http://localhost:8084/api/compliance/validate/" + amount,
+Boolean class
+);
+[source,text]
+----
+return Boolean. TRUE .equals(result);
+----
+[source,text]
+----
+}
+----
+
+// PDF page 46; printed page 45
+[source,text]
+----
+}
+----
+=== 11.6 RestTemplateConfig configuration class
+
+[source,text]
+----
+package com.digibank.transaction.configuration;
+----
+[source,text]
+----
+import org.springframework.context.annotation. Bean ;
+import org.springframework.context.annotation. Setup ;
+import org.springframework.web.client.RestTemplate;
+----
+[source,text]
+----
+@Configuration
+public class RestTemplateConfig {
+----
+[source,text]
+----
+@Bean
+public RestTemplate restTemplate () {
+return new RestTemplate();
+}
+}
+----
+=== 11.7 Business Service TransactionService
+
+[source,text]
+----
+package com.digibank.transaction.service;
+----
+[source,text]
+----
+import com.digibank.transaction.client.ComplianceClient;
+----
+
+// PDF page 47; printed page 46
+[source,text]
+----
+import com.digibank.transaction.model.Transaction;
+----
+[source,text]
+----
+import com.digibank.transaction.repository.TransactionRepository;
+----
+[source,text]
+----
+import org.springframework.stereotype.Service;
+----
+[source,text]
+----
+import java.util.List;
+----
+[source,text]
+----
+@Service
+----
+[source,text]
+----
+public class TransactionService {
+----
+[source,text]
+----
+private final TransactionRepository repository ;
+----
+[source,text]
+----
+private final ComplianceClient complianceClient ;
+----
+ComplianceClient complianceClient) {
+[source,text]
+----
+public TransactionService (TransactionRepository repository,
+----
+this . repository = repository;
+this . complianceClient = complianceClient;
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Transaction createTransaction (Transaction transaction) {
+----
+if (! complianceClient .validateAmount(transaction.getAmount())) {
+by compliance" );
+[source,text]
+----
+throw new IllegalArgumentException( "Transaction rejected
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+return repository .save(transaction);
+----
+[source,text]
+----
+}
+----
+
+// PDF page 48; printed page 47
+[source,text]
+----
+public List<Transaction> getTransactions () {
+----
+[source,text]
+----
+return repository.findAll ();
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 11.8 REST Transaction Controller
+
+[source,text]
+----
+package com.digibank.transaction.api;
+----
+[source,text]
+----
+import com.digibank.transaction.model.Transaction;
+----
+[source,text]
+----
+import com.digibank.transaction.service.TransactionService;
+----
+[source,text]
+----
+import org.springframework.http.HttpStatus;
+----
+[source,text]
+----
+import org.springframework.http.ResponseEntity;
+----
+[source,text]
+----
+import org.springframework.web.bind.annotation.*;
+----
+[source,text]
+----
+@RestController
+----
+[source,text]
+----
+@RequestMapping ( "/api/transactions" )
+----
+[source,text]
+----
+public class TransactionController {
+----
+[source,text]
+----
+private final TransactionService service ;
+----
+[source,text]
+----
+public TransactionController (TransactionService service) {
+----
+[source,text]
+----
+this.service = service ;
+----
+[source,text]
+----
+}
+----
+
+// PDF page 49; printed page 48
+[source,text]
+----
+@PostMapping
+----
+[source,text]
+----
+public ResponseEntity<Transaction> createTransaction (
+@RequestBody Transaction transaction) {
+----
+.createTransaction(transaction));
+[source,text]
+----
+return ResponseEntity.status(HttpStatus.CREATED).body( service
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+@GetMapping
+----
+[source,text]
+----
+public ResponseEntity<?> findAll () {
+----
+[source,text]
+----
+return ResponseEntity.ok( service.getTransactions ());
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 11.9 Configuring application.yml
+
+**server :**
+
+[source,text]
+----
+port : 8083
+----
+**spring :**
+
+**application :**
+
+[source,text]
+----
+name : transaction-service
+----
+**datasource :**
+
+[source,text]
+----
+url : jdbc:postgresql://localhost:5432/digibank_transaction_db
+----
+[source,text]
+----
+username : digibankuser
+----
+
+// PDF page 50; printed page 49
+[source,text]
+----
+password : digibankpwd
+----
+[source,text]
+----
+driver-class-name : org.postgresql.Driver
+----
+**jpa :**
+
+**hibernate :**
+
+[source,text]
+----
+ddl-auto : update
+----
+**properties :**
+
+**hibernate :**
+
+[source,text]
+----
+dialect : org.hibernate.dialect.PostgreSQLDialect
+----
+=== 12. Compliance Department
+
+The compliance department applies the business rules that govern the execution of sensitive operations. In a bank, this layer is essential because it allows unauthorized transactions to be blocked before they impact the rest of the system.
+=== 12.1 Service Structure
+
+
+// PDF page 51; printed page 50
+=== 12.2 Main Class
+
+[source,text]
+----
+package com.digibank.compliance;
+----
+org.springframework.boot.autoconfigure.SpringBootApplication;
+[source,text]
+----
+import org.springframework.boot.SpringApplication;
+import
+----
+SpringApplication.run(ComplianceServiceApplication. class , args);
+[source,text]
+----
+@SpringBootApplication
+public class ComplianceServiceApplication {
+public static void main (String[] args) {
+}
+}
+----
+=== 12.3 Business Service Compliance Service
+
+[source,text]
+----
+package com.digibank.compliance.service;
+----
+[source,text]
+----
+import org.springframework.stereotype.Service;
+----
+[source,text]
+----
+@Service
+public class ComplianceService {
+----
+[source,text]
+----
+public boolean validateTransactionAmount (Double amount) {
+return amount != null && amount > 0 && amount <= 10000 ;
+----
+
+// PDF page 52; printed page 51
+[source,text]
+----
+}
+}
+----
+=== 12.4 REST Controller ComplianceController
+
+[source,text]
+----
+package com.digibank.compliance.api;
+----
+[source,text]
+----
+import com.digibank.compliance.service.ComplianceService;
+import org.springframework.web.bind.annotation.*;
+----
+[source,text]
+----
+import java.util.Map;
+----
+[source,text]
+----
+@RestController
+@RequestMapping ( "/api/compliance" )
+public class ComplianceController {
+----
+[source,text]
+----
+private final ComplianceService service ;
+----
+[source,text]
+----
+public ComplianceController (ComplianceService service) {
+this.service = service ;
+}
+----
+amount) {
+.validateTransactionAmount(amount));
+[source,text]
+----
+@GetMapping ( "/validate/{amount}" )
+public Map<String, Boolean> validate ( @PathVariable Double
+return Map. of ( "valid" , service
+----
+
+// PDF page 53; printed page 52
+[source,text]
+----
+}
+}
+----
+=== 12.5 Configuring application.yml
+
+**server :**
+
+[source,text]
+----
+port : 8084
+----
+**spring :**
+
+**application :**
+
+[source,text]
+----
+name : compliance-service
+----
+=== 13. Notification Service
+
+The notification service illustrates a secondary process triggered by a business event. Without this service, Digi Bank would not clearly demonstrate the event-driven nature of the process or the separation between the primary process and the side effect.
+=== 13.1 Service Structure
+
+
+// PDF page 54; printed page 53
+=== 13.2 Main Class
+
+[source,text]
+----
+package com.digibank.notification;
+----
+org.springframework.boot.autoconfigure.SpringBootApplication;
+[source,text]
+----
+import org.springframework.boot.SpringApplication;
+import
+----
+SpringApplication.run(NotificationServiceApplication. class , args);
+[source,text]
+----
+@SpringBootApplication
+public class NotificationServiceApplication {
+public static void main (String[] args) {
+}
+}
+----
+=== 13.3 NotificationRequest Query Template
+
+
+// PDF page 55; printed page 54
+[source,text]
+----
+package com.digibank.notification.model;
+----
+[source,text]
+----
+public class NotificationRequest {
+private String recipient ;
+private String message ;
+----
+[source,text]
+----
+public NotificationRequest () {
+}
+----
+[source,text]
+----
+public NotificationRequest (String recipient, String message)
+{
+this.recipient = recipient ;
+this.message = message ;
+}
+----
+[source,text]
+----
+public String getRecipient () {
+return recipient ;
+}
+----
+[source,text]
+----
+public void setRecipient (String recipient) {
+this.recipient = recipient ;
+}
+----
+[source,text]
+----
+public String getMessage () {
+return message ;
+}
+----
+[source,text]
+----
+public void setMessage (String message) {
+----
+
+// PDF page 56; printed page 55
+[source,text]
+----
+this.message = message ;
+}
+}
+----
+=== 13.4 Business Service NotificationService
+
+[source,text]
+----
+package com.digibank.notification.service;
+----
+[source,text]
+----
+import com.digibank.notification.model.NotificationRequest;
+import org.springframework.stereotype.Service;
+----
+[source,text]
+----
+@Service
+public class NotificationService {
+----
+": " + request.getMessage();
+[source,text]
+----
+public String sendNotification (NotificationRequest request)
+{
+return "Notification sent to " + request.getRecipient() +
+}
+}
+----
+=== 13.5 REST Controller NotificationController
+
+[source,text]
+----
+package com.digibank.notification.api;
+----
+
+// PDF page 57; printed page 56
+[source,text]
+----
+import com.digibank.notification.model.NotificationRequest;
+import com.digibank.notification.service.NotificationService;
+import org.springframework.web.bind.annotation.*;
+----
+[source,text]
+----
+@RestController
+@RequestMapping ( "/api/notifications" )
+public class NotificationController {
+----
+[source,text]
+----
+private final NotificationService service ;
+----
+[source,text]
+----
+public NotificationController (NotificationService service) {
+this.service = service ;
+}
+----
+request) {
+[source,text]
+----
+@PostMapping
+public String notify ( @RequestBody NotificationRequest
+return service .sendNotification(request);
+}
+}
+----
+=== 13.6 Configuring application.yml
+
+**server :**
+
+[source,text]
+----
+port : 8085
+----
+**spring :**
+
+
+// PDF page 58; printed page 57
+**application :**
+
+[source,text]
+----
+name : notification-service
+----
+== Part II: Design Patterns, Containerization, and CI/CD
+
+This section presents the essential patterns to demonstrate in Digi Bank: API Gateway, Service Discovery, Circuit Breaker, Saga, and CQRS. For each, we specify the concrete problem, the solution provided, how the pattern solves the problem, and then a simple implementation with the main configurations.
+
+// PDF page 59; printed page 58
+=== 14. API Gateway
+
+Without the API Gateway, the client must know and call each service directly. In Digi Bank, this means multiple ports, URLs, and entry points to maintain, complicating testing, security, and system evolution. The problem is even more pronounced when the frontend, Postman, or another consumer needs to communicate with customer-service, account-service, transaction-service, and compliance-service separately.
+The API Gateway provides a single point of entry. It receives all external requests, routes them to the correct service, and can apply cross-functional processes such as authentication, logging, and rate limiting. In Digi Bank, it simplifies access to the architecture and hides internal complexity.
+=== 14.1 Job Role
+
+The API Gateway receives requests from the client and then redirects them to the relevant service. It can also apply cross-functional filters, such as authentication, rate limiting, logging, or request transformation. This avoids duplicating these processes in each business service.
+=== 14.2 Service Structure
+
+=== 14.3 Maven Dependency
+
+
+// PDF page 60; printed page 59
+[source,text]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0"
+----
+[source,text]
+----
+xmlns: xsi ="http://www.w3.org/2001/XMLSchema-instance"
+----
+http://maven.apache.org/xsd/maven-4.0.0.xsd" >
+[source,text]
+----
+xsi :schemaLocation ="http://maven.apache.org/POM/4.0.0
+----
+[source,text]
+----
+<modelVersion> 4.0.0 </modelVersion>
+----
+[source,text]
+----
+<parent>
+----
+[source,text]
+----
+<groupId> com.digibank </groupId>
+----
+[source,text]
+----
+<artifactId> digibank-microservices-parent </artifactId>
+----
+[source,text]
+----
+<version> 1.0.0 </version>
+----
+[source,text]
+----
+</parent>
+----
+[source,text]
+----
+<artifactId> api-gateway </artifactId>
+----
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId> spring-cloud-starter-gateway </artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.boot </groupId>
+----
+[source,text]
+----
+<artifactId> spring-boot-starter-actuator </artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+
+// PDF page 61; printed page 60
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId> spring-cloud-starter-loadbalancer </artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+<dependencyManagement>
+----
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId> spring-cloud-dependencies </artifactId>
+----
+[source,text]
+----
+<version> ${spring-cloud.version} </version>
+----
+[source,text]
+----
+<type> pom </type>
+----
+[source,text]
+----
+<scope> import </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+</dependencyManagement>
+----
+[source,text]
+----
+</project>
+----
+=== 14.4 Main Class
+
+[source,text]
+----
+package com.digibank.gateway;
+----
+
+// PDF page 62; printed page 61
+[source,text]
+----
+import org.springframework.boot.SpringApplication;
+----
+org.springframework.boot.autoconfigure.SpringBootApplication;
+[source,text]
+----
+import
+----
+[source,text]
+----
+@SpringBootApplication
+----
+[source,text]
+----
+public class ApiGatewayApplication {
+----
+[source,text]
+----
+public static void main (String[] args) {
+----
+SpringApplication.run(ApiGatewayApplication. class , args);
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 14.5 Configuring application.yml
+
+**server :**
+
+[source,text]
+----
+port : 8080
+----
+**spring :**
+
+**application :**
+
+[source,text]
+----
+name : api-gateway
+----
+**cloud :**
+
+**gateway :**
+
+**routes :**
+
+
+// PDF page 63; printed page 62
+[source,text]
+----
+- ID : customer-service
+----
+[source,text]
+----
+URI : http://localhost:8081
+----
+**predicates :**
+
+- Path=/api/customers/**
+[source,text]
+----
+- id : account-service
+----
+[source,text]
+----
+URI : http://localhost:8082
+----
+**predicates :**
+
+- Path=/api/accounts/**
+[source,text]
+----
+- id : transaction-service
+----
+[source,text]
+----
+URI : http://localhost:8083
+----
+**predicates :**
+
+- Path=/api/transactions/**
+[source,text]
+----
+- ID : compliance-service
+----
+[source,text]
+----
+URI : http://localhost:8084
+----
+**predicates :**
+
+- Path=/api/compliance/**
+[source,text]
+----
+- id : notification-service
+----
+[source,text]
+----
+URI : http://localhost:8085
+----
+**predicates :**
+
+- Path=/api/notifications/**
+
+// PDF page 64; printed page 63
+**management :**
+
+**endpoints :**
+
+**web :**
+
+**exposure :**
+
+[source,text]
+----
+include : gateway, routes, health, info
+----
+=== 14.6 Expected result
+
+How does the pattern solve the problem?
+The client no longer directly calls multiple services; it uses a single URL. The services remain hidden, ports can change without impacting the consumer, and common rules are centralized.
+The client must be able to use a single URL, for example http://localhost:8080, and then call the various services without knowing their internal ports. This greatly simplifies testing and prepares the architecture for centralized authentication and monitoring.
+=== 15. Discovery Service
+
+Without Service Discovery, each service must know the exact address of the others. In Digi Bank, transaction-service could call compliance-service via a hard-coded URL. If the service changes ports or is restarted in a different container, the call becomes unreliable. This is a classic breaking point when moving to a distributed architecture.
+Service Discovery solves this problem by introducing a registry where services register dynamically. Calls are made by logical name rather than physical address. This makes the architecture more flexible and more compatible with Docker deployments.
+
+// PDF page 65; printed page 64
+=== 15.1 Job Role
+
+In Digi Bank, the transaction service can call the compliance service , and then the notification service . With Service Discovery , it doesn't need to encode static URLs. It simply requests the service by name, and the registry provides the active address. This makes the system more flexible and better suited to container deployments.
+=== 15.2 Service Structure
+
+=== 15.3 Maven Dependency
+
+[source,text]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0" >
+----
+[source,text]
+----
+<modelVersion> 4.0.0 </modelVersion>
+----
+[source,text]
+----
+<parent>
+----
+[source,text]
+----
+<groupId> com.digibank </groupId>
+----
+[source,text]
+----
+<artifactId> digibank-microservices-parent </artifactId>
+----
+[source,text]
+----
+<version> 1.0.0 </version>
+----
+
+// PDF page 66; printed page 65
+[source,text]
+----
+</parent>
+----
+[source,text]
+----
+<artifactId> config-server </artifactId>
+----
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId>             spring-cloud-starter-netflix-eureka-server
+</artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+<dependencyManagement>
+----
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId> spring-cloud-dependencies </artifactId>
+----
+[source,text]
+----
+<version> ${spring-cloud.version} </version>
+----
+[source,text]
+----
+<type> pom </type>
+----
+[source,text]
+----
+<scope> import </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+</dependencyManagement>
+----
+[source,text]
+----
+</project>
+----
+
+// PDF page 67; printed page 66
+=== 15.4 Main Class
+
+[source,text]
+----
+package com.digibank.discovery;
+----
+[source,text]
+----
+import org.springframework.boot.SpringApplication;
+----
+SpringBootApplication ;
+[source,text]
+----
+import                             org.springframework.boot.autoconfigure.
+----
+EnableEurekaServer ;
+[source,text]
+----
+import           org.springframework.cloud.netflix.eureka.server.
+----
+[source,text]
+----
+@EnableEurekaServer
+----
+[source,text]
+----
+@SpringBootApplication
+----
+[source,text]
+----
+public class DiscoveryServerApplication {
+----
+[source,text]
+----
+public static void main (String[] args) {
+----
+SpringApplication. run (DiscoveryServerApplication. class , args);
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 15.5 Configuring application.yml
+
+**server :**
+
+[source,text]
+----
+port : 8761
+----
+
+// PDF page 68; printed page 67
+**spring :**
+
+**application :**
+
+[source,text]
+----
+name : discovery-server
+----
+**eureka :**
+
+**customer :**
+
+[source,text]
+----
+register-with-eureka : false
+----
+[source,text]
+----
+fetch-registry : false
+----
+=== 15.6 Client-side configuration
+
+Each client microservice that includes the Gateway API must include the Eureka client starter and register with the registry. To do this, you need to add this configuration to the
+[source,text]
+----
+microservice's pom.xml file.
+----
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId>                     spring-cloud-starter-netflix-eureka-client
+</artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+<dependencyManagement>
+----
+
+// PDF page 69; printed page 68
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId> spring-cloud-dependencies </artifactId>
+----
+[source,text]
+----
+<version> ${spring-cloud.version} </version>
+----
+[source,text]
+----
+<type> pom </type>
+----
+[source,text]
+----
+<scope> import </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+</dependencyManagement>
+----
+[source,text]
+----
+Also add this configuration to the application.yml file.
+----
+**eureka :**
+
+**customer :**
+
+**service-url :**
+
+[source,text]
+----
+defaultZone : http://localhost:8761/eureka
+----
+[source,text]
+----
+register-with-eureka : true
+----
+[source,text]
+----
+fetch-registry : true
+----
+=== 15.7 Expected result
+
+
+// PDF page 70; printed page 69
+How does the pattern solve the problem?
+Services no longer rely on fixed URLs. They are found by name, which simplifies local environments, containers, and scaling.
+The discovery server must start first, then the other services must register with it automatically. The student must be able to verify in the Eureka interface that the services are visible and active.
+=== 16. Config Server
+
+The Config Server centralizes service configuration files. Without this component, each service retains its settings locally, complicating maintenance when modifying a port, profile, or database configuration across multiple services simultaneously.
+=== 16.1 Job Role
+
+
+// PDF page 71; printed page 70
+In Digi Bank, several services use the same configuration conventions. The Config Server avoids duplication and allows common settings to be externalized. This is a good way to show students how to properly manage a distributed application.
+=== 16.2 Service Structure
+
+=== 16.3 Maven Dependency
+
+[source,text]
+----
+<project xmlns ="http://maven.apache.org/POM/4.0.0" >
+----
+[source,text]
+----
+<modelVersion> 4.0.0 </modelVersion>
+----
+[source,text]
+----
+<parent>
+----
+[source,text]
+----
+<groupId> com.digibank </groupId>
+----
+[source,text]
+----
+<artifactId> digibank-microservices-parent </artifactId>
+----
+[source,text]
+----
+<version> 1.0.0 </version>
+----
+[source,text]
+----
+</parent>
+----
+[source,text]
+----
+<artifactId> config-server </artifactId>
+----
+
+// PDF page 72; printed page 71
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId> spring-cloud-config-server </artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+<dependencyManagement>
+----
+[source,text]
+----
+<dependencies>
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId> spring-cloud-dependencies </artifactId>
+----
+[source,text]
+----
+<version> ${spring-cloud.version} </version>
+----
+[source,text]
+----
+<type> pom </type>
+----
+[source,text]
+----
+<scope> import </scope>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+</dependencies>
+----
+[source,text]
+----
+</dependencyManagement>
+----
+[source,text]
+----
+</project>
+----
+=== 16.4 Main Class
+
+[source,text]
+----
+package com.digibank.config;
+----
+
+// PDF page 73; printed page 72
+[source,text]
+----
+import org.springframework.boot.SpringApplication;
+----
+SpringBootApplication ;
+[source,text]
+----
+import                             org.springframework.boot.autoconfigure.
+----
+EnableConfigServer ;
+[source,text]
+----
+import                         org.springframework.cloud.config.server.
+----
+[source,text]
+----
+@EnableConfigServer
+----
+[source,text]
+----
+@SpringBootApplication
+----
+[source,text]
+----
+public class ConfigServerApplication {
+----
+[source,text]
+----
+public static void main (String[] args) {
+----
+SpringApplication. run (ConfigServerApplication. class , args);
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 16.5 Configuring application.yml
+
+**server :**
+
+[source,text]
+----
+port : 8888
+----
+**spring :**
+
+**application :**
+
+[source,text]
+----
+name : config-server
+----
+**cloud :**
+
+
+// PDF page 74; printed page 73
+**configuration :**
+
+**server :**
+
+[source,text]
+----
+git :
+----
+[source,text]
+----
+uri : https://github.com/your-org/digibank-config-repo
+----
+[source,text]
+----
+default-label : main
+----
+configuration file to store the API gateway configuration.
+[source,text]
+----
+In the configuration repository, you can, for example, create an api-gateway.yml
+----
+=== 16.6 Example configuration for the Gateway API
+
+[source,text]
+----
+In the API Gateway, you need to add the following dependency to the pom.xml file.
+----
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> org.springframework.cloud </groupId>
+----
+[source,text]
+----
+<artifactId> spring-cloud-starter-config </artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+[source,text]
+----
+Next, modify the application.yml configuration file as follows:
+----
+**server :**
+
+[source,text]
+----
+port : 8080
+----
+
+// PDF page 75; printed page 74
+**spring :**
+
+**application :**
+
+[source,text]
+----
+name : api-gateway
+----
+**configuration :**
+
+[source,text]
+----
+import : "configserver:http://localhost:8888"
+----
+**cloud :**
+
+**configuration :**
+
+[source,text]
+----
+fail-fast : true
+----
+=== 16.7 Expected result
+
+Microservices must be able to start by reading their parameters from the configuration server. This allows configuration changes without recompiling the business logic.
+=== 17. Circuit Breaker (application resilience)
+
+Without a circuit breaker, a service calling another failed service continues to wait, fail, and retry. In Digi Bank, if a transaction service depends on a compliance service and the latter fails, requests become blocked and can create a cascading effect throughout the entire chain. The system becomes slow, unstable, and difficult to operate.
+
+// PDF page 76; printed page 75
+The Circuit Breaker temporarily cuts off calls to the down or slow service. It protects the system, prevents resource depletion, and allows for the implementation of a backup strategy. In a banking context, this is essential for maintaining overall responsiveness.
+=== 17.1 Maven Dependency
+
+[source,text]
+----
+<dependency>
+----
+[source,text]
+----
+<groupId> io.github.resilience4j </groupId>
+----
+[source,text]
+----
+<artifactId> resilience4j-spring-boot3 </artifactId>
+----
+[source,text]
+----
+</dependency>
+----
+=== 17.2 Implementing ComplianceClient with CircuitBreaker
+
+[source,text]
+----
+package com.digibank.transaction.client;
+----
+io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+[source,text]
+----
+import
+----
+[source,text]
+----
+import org.springframework.stereotype.Component;
+----
+[source,text]
+----
+import org.springframework.beans.factory.annotation.Value;
+----
+[source,text]
+----
+import org.springframework.web.client.RestTemplate;
+----
+
+// PDF page 77; printed page 76
+[source,text]
+----
+@Component
+----
+[source,text]
+----
+public class ComplianceClient {
+----
+[source,text]
+----
+private final RestTemplate restTemplate;
+----
+[source,text]
+----
+public ComplianceClient(RestTemplate restTemplate) {
+----
+this .restTemplate = restTemplate;
+[source,text]
+----
+}
+----
+"fallbackValidation" )
+[source,text]
+----
+@CircuitBreaker(name =   "complianceService"   ,   fallbackMethod   =
+----
+[source,text]
+----
+public boolean validateAmount(Double amount) {
+----
+Boolean result = restTemplate.getForObject(
+"http://localhost:8084/api/compliance/validate/" + amount,
+Boolean class
+);
+[source,text]
+----
+return Boolean.TRUE.equals(result);
+----
+[source,text]
+----
+}
+----
+ex) {
+[source,text]
+----
+public boolean fallbackValidation(Double amount, Throwable
+----
+[source,text]
+----
+return false ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+
+// PDF page 78; printed page 77
+=== 17.3 Configuration Update
+
+[source,text]
+----
+Add this configuration to application.yml
+----
+**resilience4j :**
+
+**circuitbreaker :**
+
+**instances :**
+
+**complianceService :**
+
+[source,text]
+----
+slidingWindowSize : 10
+----
+[source,text]
+----
+failureRateThreshold : 50
+----
+[source,text]
+----
+waitDurationInOpenState : 10s
+----
+[source,text]
+----
+permittedNumberOfCallsInHalfOpenState : 3
+----
+=== 17.4 Expected Result
+
+How does the pattern solve the problem?
+The service does not persist in calling a component that is already failed. It switches to degraded mode more quickly and protects the entire architecture.
+=== 18. SAGA (Distributed Operations)
+
+Without SAGA , a distributed transaction may only partially succeed. In Digi Bank, a transfer can debit an account, then fail to record the transaction or send a notification. This results in an inconsistent state, which is unacceptable in a banking system.
+
+// PDF page 79; printed page 78
+SAGA breaks down a global operation into several coordinated local steps. Each step can have a compensatory action if a subsequent step fails. The system thus avoids relying on a single global ACID transaction between multiple services .
+=== 18.1 Implementation of a TransferSagaService transfer orchestrator
+
+[source,text]
+----
+package com.digibank.transaction.service;
+----
+[source,text]
+----
+import com.digibank.transaction.client.AccountClient;
+----
+[source,text]
+----
+import com.digibank.transaction.client.ComplianceClient;
+----
+[source,text]
+----
+import com.digibank.transaction.client.NotificationClient;
+----
+[source,text]
+----
+import org.springframework.stereotype. Service ;
+----
+[source,text]
+----
+@Service
+----
+[source,text]
+----
+public class TransferSagaService {
+----
+[source,text]
+----
+private final ComplianceClient complianceClient ;
+----
+[source,text]
+----
+private final AccountClient accountClient ;
+----
+[source,text]
+----
+private final NotificationClient notificationClient ;
+----
+[source,text]
+----
+public TransferSagaService (
+----
+ComplianceClient complianceClient,
+AccountClient accountClient,
+NotificationClient notificationClient) {
+
+// PDF page 80; printed page 79
+this . complianceClient = complianceClient;
+this . accountClient = accountClient;
+this . notificationClient = notificationClient;
+[source,text]
+----
+}
+----
+toAccountId, Double amount) {
+[source,text]
+----
+public boolean executeTransfer    (Long   fromAccountId,   Long
+----
+if (! complianceClient .validateAmount(amount)) {
+[source,text]
+----
+return false ;
+----
+[source,text]
+----
+}
+----
+boolean debited = accountClient .debit(fromAccountId, amount);
+[source,text]
+----
+if (!debited) {
+----
+[source,text]
+----
+return false ;
+----
+[source,text]
+----
+}
+----
+boolean credited = accountClient .credit(toAccountId, amount);
+[source,text]
+----
+if (!credited) {
+----
+accountClient .compensateDebit(fromAccountId, amount);
+[source,text]
+----
+return false ;
+----
+[source,text]
+----
+}
+----
+
+// PDF page 81; printed page 80
+boolean notified = notificationClient .sendTransferConfirmation(fromAccountId, toAccountId, amount);
+[source,text]
+----
+if (!notified) {
+----
+accountClient .compensateDebit(fromAccountId, amount);
+accountClient .compensateCredit(toAccountId, amount);
+[source,text]
+----
+return false ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+return true ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 18.2 Client Account Implementation
+
+[source,text]
+----
+package com.digibank.transaction.client;
+----
+[source,text]
+----
+import org.springframework.stereotype. Component ;
+----
+[source,text]
+----
+@Component
+----
+[source,text]
+----
+public class AccountClient {
+----
+[source,text]
+----
+public boolean debit (Long fromAccountId, Double amount) {
+----
+// @ TODO implement method
+
+// PDF page 82; printed page 81
+[source,text]
+----
+return true ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+public boolean credit (Long toAccountId, Double amount) {
+----
+// @ TODO implement method
+[source,text]
+----
+return true ;
+----
+[source,text]
+----
+}
+----
+amount) {
+[source,text]
+----
+public     void    compensateDebit    (Long    fromAccountId,   Double
+----
+// @ TODO implement method
+[source,text]
+----
+}
+----
+amount) {
+[source,text]
+----
+public      void   compensateCredit    (Long    toAccountId,    Double
+----
+// @ TODO implement method
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 18.3 Client Notification Implementation
+
+[source,text]
+----
+package com.digibank.transaction.client;
+----
+[source,text]
+----
+import org.springframework.stereotype. Component ;
+----
+
+// PDF page 83; printed page 82
+[source,text]
+----
+@Component
+----
+[source,text]
+----
+public class NotificationClient {
+----
+Long toAccountId, Double amount) {
+[source,text]
+----
+public boolean sendTransferConfirmation (Long fromAccountId,
+----
+// @ TODO implement method
+[source,text]
+----
+return true ;
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 18.4 Expected Result
+
+How does the pattern solve the problem?
+Saga ensures that a distributed business operation remains consistent, even if a step fails. It provides controlled and compensated behavior instead of a partial state that cannot be manually repaired.
+=== 19. CQRS (Command Query Responsibility Segregation)
+
+Without CQRS , Digi Bank often uses the same model for both reading and writing. This becomes cumbersome as soon as a view becomes complex, such as a customer's complete history, activity aggregates, or dashboards. While write operations need to remain simple, read operations can have very different requirements.
+CQRS separates the command model from the reading model. This allows each side to be optimized for its actual use. In Digi Bank, this is useful for transaction history screens or account summary views.
+
+// PDF page 84; printed page 83
+=== 19.1 Implementation of a command
+
+[source,text]
+----
+package com.digibank.transaction.command;
+----
+amount , String type ) {
+[source,text]
+----
+public record CreateTransactionCommand(Long accountId , Double
+----
+[source,text]
+----
+}
+----
+=== 19.2 Implementation of the write handler
+
+[source,text]
+----
+package com.digibank.transaction.command;
+----
+[source,text]
+----
+import com.digibank.transaction.model.Transaction;
+----
+com.digibank.transaction.repository.TransactionRepository;
+[source,text]
+----
+import
+----
+[source,text]
+----
+import org.springframework.stereotype. Service ;
+----
+[source,text]
+----
+@Service
+----
+[source,text]
+----
+public class TransactionCommandHandler {
+----
+[source,text]
+----
+private final TransactionRepository repository ;
+----
+repository) {
+[source,text]
+----
+public      TransactionCommandHandler   (TransactionRepository
+----
+
+// PDF page 85; printed page 84
+this . repository = repository;
+[source,text]
+----
+}
+----
+[source,text]
+----
+public Transaction handle (CreateTransactionCommand command)
+{
+----
+Transaction tx = new Transaction();
+tx.setAccountId(command.accountId());
+tx.setAmount(command.amount());
+tx.setType(command.type());
+[source,text]
+----
+return repository .save(tx);
+----
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 19.3 Implementation of a reading view
+
+[source,text]
+----
+package com.digibank.transaction.query;
+----
+amount , String type ) {
+[source,text]
+----
+public record TransactionView(Long id , Long accountId , Double
+----
+[source,text]
+----
+}
+----
+=== 19.4 Implementation of a reading service
+
+
+// PDF page 86; printed page 85
+[source,text]
+----
+package com.digibank.transaction.query;
+----
+com.digibank.transaction.repository.TransactionRepository;
+[source,text]
+----
+import
+----
+[source,text]
+----
+import org.springframework.stereotype. Service ;
+----
+[source,text]
+----
+import java.util.List;
+----
+[source,text]
+----
+@Service
+----
+[source,text]
+----
+public class TransactionQueryService {
+----
+[source,text]
+----
+private final TransactionRepository repository ;
+----
+repository) {
+[source,text]
+----
+public    TransactionQueryService   (TransactionRepository
+----
+this . repository = repository;
+[source,text]
+----
+}
+----
+[source,text]
+----
+public List<TransactionView> getAllViews () {
+----
+[source,text]
+----
+return repository.findAll ()
+----
+.stream()
+.map(tx -> new TransactionView(tx.getId(), tx.getAccountId(), tx.getAmount(), tx.getType()))
+.toList();
+[source,text]
+----
+}
+----
+
+// PDF page 87; printed page 86
+[source,text]
+----
+}
+----
+=== 19.5 Expected result
+
+How does the pattern solve the problem?
+CQRS simplifies complex reads and maintains clean writes. It makes views easier to optimize without degrading the command path.
+=== 20. Global configuration
+
+For these patterns to work correctly in Digi Bank, several common configurations
+**must be implemented:**
+
+* One application.yml file per service
+* Eureka for the discovery
+* Spring Cloud Gateway for routing
+* Resilience4j for flow protections
+* PostgreSQL by service
+* Stable service names
+* Docker Compose to launch the whole thing.
+For Digi Bank, the logical order is as follows:
+=== 1. Create basic business services
+
+=== 2. Add Discovery Service
+
+=== 3. Introduce the Gateway API
+
+=== 4. Secure calls with Circuit Breaker
+
+=== 5. Modeling a Transfer Saga
+
+=== 6. Separating reading and writing with CQRS
+
+=== 7. Containerize and orchestrate the whole thing.
+
+
+// PDF page 88; printed page 87
+This order allows progress from the simplest to the most complex, without mixing different areas of focus. It also provides students with a coherent and progressive learning path.
+=== 21. Tests
+
+Testing is essential in Digi Bank because a microservices architecture multiplies the potential points of failure. Without testing, a regression in a service can break an entire chain of calls, particularly between transaction services, compliance services, and notification services. Therefore, it's crucial to distinguish between unit tests, integration tests, and end-to-end tests.
+=== 21.1 Unit Tests
+
+Unit tests verify the behavior of a class or an isolated service. In Digi Bank, they are used, for example, to validate the compliance rule, the logic for creating an account, or the processing of a notification.
+**Example for the compliance department:**
+
+[source,text]
+----
+package com.digibank.compliance.service;
+----
+[source,text]
+----
+import org.junit.jupiter.api.Assertions;
+----
+[source,text]
+----
+import org.junit.jupiter.api. Test ;
+----
+[source,text]
+----
+public class ComplianceServiceTest {
+----
+ComplianceService();
+[source,text]
+----
+private   final               ComplianceService            service        =     new
+----
+
+// PDF page 89; printed page 88
+[source,text]
+----
+@Test
+----
+void shouldAcceptAmountBelowLimit () {
+Assertions. assertTrue ( service.validateTransactionAmount (
+=== 5000.0 ));
+
+[source,text]
+----
+}
+----
+[source,text]
+----
+@Test
+----
+void shouldRejectAmountAboveLimit () {
+Assertions. assertFalse ( service.validateTransactionAmount (
+=== 20000.0 ));
+
+[source,text]
+----
+}
+----
+[source,text]
+----
+}
+----
+=== 21.2 Integration Tests
+
+Integration tests verify that a service communicates correctly with its database or another service. In Digi Bank, they are useful for checking that customer-service correctly persists customer information and that transaction-service correctly calls compliance-service.
+**Example :**
+
+* Start the Spring context
+* Inject the repository
+* To persist an entity
+* Check that it has been proofread correctly.
+To make them you can use cucumber
+
+// PDF page 90; printed page 89
+=== 21.3 API Testing
+
+API tests allow you to verify the REST endpoints exposed by each microservice. They are particularly useful for validating the gateway, routes, and business responses. A simple example is to test that `GET /api/compliance/validate/5000` returns a positive response. You can use `newman` to do this.
+=== 21.4. Expected result
+
+The tests must demonstrate that each service responds correctly, that business rules are respected, and that errors are detected before deployment.
+=== 22. Dockerization of services
+
+containerization, local installation and execution become less reproducible, especially when multiple databases, services, and dependencies need to be launched in parallel.
+[source,text]
+----
+Docker allows each component to run in an isolated container. Without
+----
+=== 22.1 Why Docker in Digi Bank
+
+[source,text]
+----
+Docker is useful for:
+----
+* Isolate each microservice
+* Standardize the execution environment
+* Replicating the same architecture across multiple machines
+* Facilitate integration testing
+* Prepare for a cloud or CI/CD deployment.
+=== 22.2 Dockerfile type for a Spring Boot service
+
+Each Spring Boot service must be packaged in a standalone Docker image. Without this, the orchestration would be fragile and dependent on the local environment. The
+
+// PDF page 91; printed page 90
+principle is the same for all services, with only the port, the JAR name, and sometimes the environment variables changing.
+=== 22.3 Dockerfile for customer-service
+
+FROM eclipse-temurin:17-jdk
+WORKDIR / app
+COPY target / customer-service-1.0.0.jar app.jar
+EXPOSE 8081
+ENTRYPOINT [ "java" , "-jar" , "/app/app.jar" ]
+=== 22.4 Dockerfile for account-service
+
+FROM eclipse-temurin:17-jdk
+WORKDIR / app
+COPY target / account-service-1.0.0.jar app.jar
+EXPOSE 8082
+ENTRYPOINT [ "java" , "-jar" , "/app/app.jar" ]
+=== 22.5 Dockerfile for transaction-service
+
+
+// PDF page 92; printed page 91
+FROM eclipse-temurin:17-jdk
+WORKDIR / app
+COPY target / transaction-service-1.0.0.jar app.jar
+EXPOSE 8083
+ENTRYPOINT [ "java" , "-jar" , "/app/app.jar" ]
+=== 22.6 Dockerfile for compliance-service
+
+FROM eclipse-temurin:17-jdk
+WORKDIR / app
+COPY target / compliance-service-1.0.0.jar app.jar
+EXPOSE 8084
+ENTRYPOINT [ "java" , "-jar" , "/app/app.jar" ]
+=== 22.7 Dockerfile for notification-service
+
+FROM eclipse-temurin:17-jdk
+WORKDIR / app
+COPY target / notification-service-1.0.0.jar app.jar
+EXPOSE 8085
+
+// PDF page 93; printed page 92
+ENTRYPOINT [ "java" , "-jar" , "/app/app.jar" ]
+=== 22.8 Dockerfile for the API gateway
+
+FROM eclipse-temurin:17-jdk
+WORKDIR / app
+COPY target / api-gateway-1.0.0.jar app.jar
+EXPOSE 8080
+ENTRYPOINT [ "java" , "-jar" , "/app/app.jar" ]
+=== 22.9 Dockerfile for the discovery service
+
+FROM eclipse-temurin:17-jdk
+WORKDIR / app
+COPY target / discovery-server-1.0.0.jar app.jar
+EXPOSE 8761
+ENTRYPOINT [ "java" , "-jar" , "/app/app.jar" ]
+=== 22.10 Dockerfile for the server configuration
+
+FROM eclipse-temurin:17-jdk
+WORKDIR / app
+
+// PDF page 94; printed page 93
+COPY target / config-server-1.0.0.jar app.jar
+EXPOSE 8888
+ENTRYPOINT [ "java" , "-jar" , "/app/app.jar" ]
+=== 22.11 Expected result
+
+Each service must be able to be built as an independent Docker image. The student must be able to run one of the services locally without installing anything other than
+[source,text]
+----
+Docker and Java.
+----
+=== 23. Orchestration with Docker Compose
+
+command. Without orchestration, you would have to manually launch each database, service, and infrastructure component, which would be tedious and unrealistic for a distributed environment.
+[source,text]
+----
+Docker Compose allows you to start the entire Digi Bank system with a single
+----
+This is essential for a microservices architecture, because the system is only valuable if the services communicate properly with each other.
+[source,text]
+----
+Docker Compose allows you to launch the entire Digi Bank ecosystem all at once.
+----
+=== 18.1 docker-compose.yml file
+
+[source,text]
+----
+version : "3.9"
+----
+**services :**
+
+**discovery-server :**
+
+
+// PDF page 95; printed page 94
+[source,text]
+----
+build : ./discovery-server
+----
+**ports :**
+
+- "8761:8761"
+**API Gateway :**
+
+[source,text]
+----
+build : ./api-gateway
+----
+**ports :**
+
+- "8080:8080"
+depends_on :
+- discovery-server
+**customer-db :**
+
+[source,text]
+----
+image : postgres:16
+----
+[source,text]
+----
+container_name : customer-db
+----
+**environment :**
+
+[source,text]
+----
+POSTGRES_DB : digibank_customer_db
+----
+[source,text]
+----
+POSTGRES_USER : digibankuser
+----
+[source,text]
+----
+POSTGRES_PASSWORD : digibankpwd
+----
+**ports :**
+
+- "5433:5432"
+**volumes :**
+
+
+// PDF page 96; printed page 95
+[source,text]
+----
+- customer_data:/var/lib/postgresql/data
+----
+**account-db :**
+
+[source,text]
+----
+image : postgres:16
+----
+[source,text]
+----
+container_name : account-db
+----
+**environment :**
+
+[source,text]
+----
+POSTGRES_DB : digibank_account_db
+----
+[source,text]
+----
+POSTGRES_USER : digibankuser
+----
+[source,text]
+----
+POSTGRES_PASSWORD : digibankpwd
+----
+**ports :**
+
+- "5434:5432"
+**volumes :**
+
+[source,text]
+----
+- account_data:/var/lib/postgresql/data
+----
+**transaction-db :**
+
+[source,text]
+----
+image : postgres:16
+----
+[source,text]
+----
+container_name : transaction-db
+----
+**environment :**
+
+[source,text]
+----
+POSTGRES_DB : digibank_transaction_db
+----
+[source,text]
+----
+POSTGRES_USER : digibankuser
+----
+[source,text]
+----
+POSTGRES_PASSWORD : digibankpwd
+----
+
+// PDF page 97; printed page 96
+**ports :**
+
+- "5435:5432"
+**volumes :**
+
+[source,text]
+----
+- transaction_data:/var/lib/postgresql/data
+----
+**compliance-db :**
+
+[source,text]
+----
+image : postgres:16
+----
+[source,text]
+----
+container_name : compliance-db
+----
+**environment :**
+
+[source,text]
+----
+POSTGRES_DB : digibank_compliance_db
+----
+[source,text]
+----
+POSTGRES_USER : digibankuser
+----
+[source,text]
+----
+POSTGRES_PASSWORD : digibankpwd
+----
+**ports :**
+
+- "5436:5432"
+**volumes :**
+
+[source,text]
+----
+- compliance_data:/var/lib/postgresql/data
+----
+**notification-db :**
+
+[source,text]
+----
+image : postgres:16
+----
+[source,text]
+----
+container_name : notification-db
+----
+**environment :**
+
+
+// PDF page 98; printed page 97
+[source,text]
+----
+POSTGRES_DB : digibank_notification_db
+----
+[source,text]
+----
+POSTGRES_USER : digibankuser
+----
+[source,text]
+----
+POSTGRES_PASSWORD : digibankpwd
+----
+**ports :**
+
+- "5437:5432"
+**volumes :**
+
+[source,text]
+----
+- notification_data:/var/lib/postgresql/data
+----
+**customer service :**
+
+[source,text]
+----
+build : ./customer-service
+----
+**ports :**
+
+- "8081:8081"
+depends_on :
+- customer-db
+- discovery-server
+**account-service :**
+
+[source,text]
+----
+build : ./account-service
+----
+**ports :**
+
+- "8082:8082"
+depends_on :
+
+// PDF page 99; printed page 98
+- account-db
+- discovery-server
+**transaction-service :**
+
+[source,text]
+----
+build : ./transaction-service
+----
+**ports :**
+
+- "8083:8083"
+depends_on :
+- transaction-db
+- discovery-server
+**compliance service :**
+
+[source,text]
+----
+build : ./compliance-service
+----
+**ports :**
+
+- "8084:8084"
+depends_on :
+- compliance-db
+**notification-service :**
+
+[source,text]
+----
+build : ./notification-service
+----
+**ports :**
+
+
+// PDF page 100; printed page 99
+- "8085:8085"
+depends_on :
+- notification-db
+**volumes :**
+
+customer_data :
+account_data :
+transaction_data :
+compliance_data :
+notification_data :
+=== 18.3 Launch Commands
+
+[source,text]
+----
+docker compound up --build
+----
+=== 18.4 Expected Result
+
+The entire Digi Bank system must start up consistently. The Eureka server must be accessible, the API Gateway must be responsive, and the business services must be reachable via their respective endpoints.
+=== 24. Github Actions Pipeline (CI/CD)
+
+
+// PDF page 101; printed page 100
+CI/CD automation is useful for ensuring that every code change remains compilable and testable. In Digi Bank, it allows for the rapid detection of regressions introduced into a service or the global configuration. [Attachment]
+=== 24.1 Pipeline Objective
+
+**The pipeline must:**
+
+* Compile the projects
+* Run the tests
+* To produce the artifacts
+* Report any build failures
+* Optionally prepare the Docker image build.
+=== 24.2 Workflow example .github/workflows/ci.yml
+
+[source,text]
+----
+Name : DigiBank CI
+----
+**on :**
+
+**push :**
+
+[source,text]
+----
+branches : [ "main" ]
+----
+pull_request :
+**jobs :**
+
+**build :**
+
+[source,text]
+----
+runs-on : ubuntu-latest
+----
+
+// PDF page 102; printed page 101
+**steps :**
+
+[source,text]
+----
+- name : Checkout code
+----
+[source,text]
+----
+uses : actions/checkout@v4
+----
+[source,text]
+----
+- name : JDK 17 Setup
+----
+[source,text]
+----
+uses : actions/setup-java@v4
+----
+**with :**
+
+[source,text]
+----
+distribution : temurin
+----
+[source,text]
+----
+Java version : "17"
+----
+[source,text]
+----
+- name : Maven packages cache
+----
+[source,text]
+----
+uses : actions/cache@v4
+----
+**with :**
+
+[source,text]
+----
+path : ~/.m2/repository
+----
+[source,text]
+----
+key : ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml')
+}}
+----
+[source,text]
+----
+restore-keys : |
+----
+[source,text]
+----
+${{ runner.os }}-m2
+----
+[source,text]
+----
+- name : Build and test
+----
+[source,text]
+----
+run : mvn clean test
+----
+
+// PDF page 103; printed page 102
+=== 24.3 Expected Result
+
+With each push, the project must be compiled and tested automatically. The student must understand that in microservices, automation becomes almost indispensable for maintaining a manageable architecture.
+== Part III: Tasks to be completed
+
+=== 25. Work requested
+
+**Students must complete the following tasks:**
+
+. Create the Spring Boot services for the project.
+. Configure PostgreSQL databases by service.
+. Set up Eureka for discovery.
+. Set up the configuration server.
+. Implement the API Gateway.
+. Add the Circuit Breaker to inter-service calls.
+. Building a Transfer Saga.
+. Separating reading and writing with CQRS.
+. Containerize services with Docker.
+. Orchestrate everything with Docker Compose.
+. Automate build and deploy with GitHub Actions.
+. Verify the endpoints and business behaviors.
+
+// PDF page 104; printed page 103
+. Correct the errors until a stable set is obtained.
+=== 26. Expected deliverables
+
+Students must submit a complete and coherent project, along with the necessary configuration and documentation to allow for the reproduction of the Digi Bank architecture. The goal is not simply to provide code, but to demonstrate an approach to architecture, implementation, and validation.
+**The expected deliverables are as follows:**
+
+* The complete digibank-microservices deposit
+* All Maven projects created
+* The pom.xml files for each service
+* The application.yml or application.properties files
+* The Dockerfile for each component
+* The docker-compose.yml file
+* GitHub Actions Workflows
+* The Java classes of business services
+* REST controllers
+* Repositories, services, clients, and configurations
+* Unit and integration testing
+* The SQL scripts for creating the databases
+* A short note explaining the order of execution and the technical choices.
+=== 27. Evaluation criteria
+
+The evaluation is based on technical consistency, the quality of the architecture's structure, and its ability to function as a distributed system. It's not simply about verifying that a service starts, but about measuring the robustness of the overall design. The criteria
+**used are as follows:**
+
+
+// PDF page 105; printed page 104
+* Consistency of the microservices architecture
+* Relevance of the job classification
+* Correctness of Spring Boot configurations
+* Quality of interdepartmental calls
+* Successful integration of the Gateway API
+* How the Discovery Service Works
+* Implementation of resilience mechanisms
+* Quality of Saga and CQRS implementation
+* Validity of Dockerfiles and docker-compose.yml
+* GitHub Actions pipeline functioning correctly
+* Quality and relevance of the tests
+* Clarity of the documentation provided.
+=== 28. Proposed scale
+
+* Environment preparation and configuration: 10%
+* Project structure and coherence: 15%
+* Implementation of business services: 25%
+* API Gateway, Discovery and Config Server: 15%
+* Microservices patterns: 15%
+* Containerization and orchestration: 10%
+* CI/CD testing and automation: 10%.
+=== 29. Expected results
+
+At the end of this workshop, students should have a first executable version of Digi Bank based on a coherent microservices architecture. The application must include a unified entry point, autonomous business services, dynamic service discovery, centralized configuration, resilience mechanisms, and functional Docker orchestration.
+
+// PDF page 106; printed page 105
+The system must also be documented, testable, and automatable. The student must be able to explain the role of each pattern, launch the services, verify the endpoints, and justify the technical choices adopted for the project.

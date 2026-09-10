@@ -1,220 +1,35 @@
-name: CI
+name: Microservices CI
 
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  build-and-test:
-    name: Build and test
+  build-test-smoke:
+    name: Build, test, containerize, and smoke-test
     runs-on: ubuntu-latest
-
+    timeout-minutes: 45
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-
-      - name: Build and test the full multi-module project
-        working-directory: digibank-parent
-        run: mvn -B clean verify
-
-  app-context-smoke:
-    name: Application context smoke
-    runs-on: ubuntu-latest
-    needs: build-and-test
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Run the Spring Boot application context smoke test
-        working-directory: digibank-parent
-        run: mvn -B -pl digibank-app -am -Dtest=DigiBankApplicationTests -Dsurefire.failIfNoSpecifiedTests=false test
-
-  compose-smoke:
-    name: Compose smoke (${{ matrix.name }})
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: embedded-tomcat
-            profile: dev
-          - name: wildfly
-            profile: wildfly
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Start the compose stack for ${{ matrix.name }}
-        working-directory: digibank-parent
-        run: |
-          docker compose down -v --remove-orphans || true
-          docker compose --profile ${{ matrix.profile }} up --build -d
-
-      - name: Run the existing smoke script
-        working-directory: digibank-parent
-        env:
-          BASE_URL: http://127.0.0.1:8080
-        run: ./scripts/smoke-test.sh
-
-      - name: Clean up compose resources
+      - name: Build and test
+        run: make build
+      - name: Build container images
+        run: make image-build
+      - name: Start stack
+        run: make up
+      - name: Run smoke checks
+        run: make smoke
+      - name: Stop stack and remove volumes
         if: always()
-        working-directory: digibank-parent
-        run: |
-          docker compose down -v --remove-orphans || true
-
-  # ---------------------------------------------------------------------------
-  # DAST – Newman: replay the security-oriented Postman collection
-  # ---------------------------------------------------------------------------
-  dast-newman:
-    name: DAST – Newman collection
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    timeout-minutes: 45
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Start the development stack
-        working-directory: digibank-parent
-        run: |
-          docker compose down -v --remove-orphans || true
-          docker compose --profile dev up --build -d
-
-      - name: Wait for the application to be ready
-        run: |
-          echo "Waiting for DigiBank to respond..."
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent --max-time 5 http://127.0.0.1:8080/ > /dev/null 2>&1 || \
-               curl --fail --silent --max-time 5 http://127.0.0.1:8080/api/customers > /dev/null 2>&1; then
-              echo "Application is ready (attempt $attempt)."
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "ERROR: Application did not respond after 120 s." >&2
-          docker compose -f digibank-parent/docker-compose.yml logs
-          exit 1
-
-      - name: Install Newman and HTML reporter
-        run: npm install --no-save --no-package-lock newman@4 newman-reporter-html
-
-      - name: Replay the DAST collection with Newman
-        working-directory: digibank-parent
-        # Informational (non-blocking) until the hardening tickets land;
-        # flip to blocking by removing `--informational` afterwards.
-        run: ../dast/postman/newman-run.sh --env local --informational
-
-      - name: Upload Newman reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: newman-dast-reports
-          path: |
-            dast/reports/**/newman-report.json
-            dast/reports/**/newman-report.html
-          if-no-files-found: warn
-
-      - name: Clean up compose resources
-        if: always()
-        working-directory: digibank-parent
-        run: docker compose down -v --remove-orphans || true
-
-  # ---------------------------------------------------------------------------
-  # DAST – OWASP ZAP: baseline scan (passive + spider)
-  # ---------------------------------------------------------------------------
-  dast-zap:
-    name: DAST – OWASP ZAP baseline
-    runs-on: ubuntu-latest
-    needs: dast-newman
-    timeout-minutes: 45
-
-    # Required by the zaproxy/action-baseline action to write issue comments
-    permissions:
-      contents: read
-      issues: write
-
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Start the development stack
-        working-directory: digibank-parent
-        run: |
-          docker compose down -v --remove-orphans || true
-          docker compose --profile dev up --build -d
-
-      - name: Wait for the application to be ready
-        run: |
-          echo "Waiting for DigiBank to respond..."
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent --max-time 5 http://127.0.0.1:8080/ > /dev/null 2>&1 || \
-               curl --fail --silent --max-time 5 http://127.0.0.1:8080/api/customers > /dev/null 2>&1; then
-              echo "Application is ready (attempt $attempt)."
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "ERROR: Application did not respond after 120 s." >&2
-          docker compose -f digibank-parent/docker-compose.yml logs
-          exit 1
-
-      - name: Run OWASP ZAP baseline scan
-        # Findings are informational until a scan policy is agreed.
-        # Set the repository variable DAST_BLOCKING=true to make alert-based
-        # findings fail the job. Follow-up hardening track: flip to blocking
-        # permanently once the hardening tickets are merged.
-        uses: zaproxy/action-baseline@v0.15.0
-        with:
-          target: http://127.0.0.1:8080/
-          allow_issue_writing: false
-          fail_action: ${{ vars.DAST_BLOCKING == 'true' }}
-          # artifact_name is intentionally unset so the action keeps its default
-          # report filenames (report_html.html, report_json.json, report_md.md)
-          # which the upload step below expects.
-
-      - name: Verify ZAP reports exist
-        if: always()
-        run: |
-          test -s report_html.html
-          test -s report_json.json
-          test -s report_md.md
-
-      - name: Upload ZAP reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-dast-reports
-          path: |
-            report_html.html
-            report_json.json
-            report_md.md
-          if-no-files-found: error
-
-      - name: Clean up compose resources
-        if: always()
-        working-directory: digibank-parent
-        run: docker compose down -v --remove-orphans || true
+        run: make clean

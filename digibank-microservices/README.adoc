@@ -1,0 +1,33 @@
+= Digi Bank Microservices
+
+This directory contains the complete Workshop 4 implementation for this
+branch. The previous monolith implementation is kept on `main`.
+
+== Service Boundaries
+
+* `customer-service` -- customer identity and contact data
+* `account-service` -- account lifecycle and status
+* `transaction-service` -- financial operations and coordination
+* `compliance-service` -- compliance decisions
+* `notification-service` -- notification side effects
+* `api-gateway` -- single client entry point
+* `discovery-server` -- service registry boundary
+* `config-server` -- centralized configuration boundary
+
+== Validation Commands
+
+Run the commands from this directory. The Makefile keeps the instructor
+workflow short and consistent.
+
+[source,shell]
+----
+make build
+make image-build
+make up
+make status
+make smoke
+make down
+----
+
+For focused work, use `make test`, `make logs`, or `make restart`. Use
+`make clean` only when the database volumes should also be removed.

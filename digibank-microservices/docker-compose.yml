@@ -1,0 +1,100 @@
+services:
+  discovery-server:
+    build: { context: ., dockerfile: discovery-server/Dockerfile }
+    environment: { SERVER_PORT: 8761 }
+    ports: ["8761:8761"]
+    networks: [digibank]
+  config-server:
+    build: { context: ., dockerfile: config-server/Dockerfile }
+    environment: { SERVER_PORT: 8888 }
+    ports: ["8888:8888"]
+    networks: [digibank]
+  api-gateway:
+    build: { context: ., dockerfile: api-gateway/Dockerfile }
+    environment:
+      SERVER_PORT: 8080
+      CUSTOMER_SERVICE_URL: http://customer-service:8081
+      ACCOUNT_SERVICE_URL: http://account-service:8082
+      TRANSACTION_SERVICE_URL: http://transaction-service:8083
+      COMPLIANCE_SERVICE_URL: http://compliance-service:8084
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
+    depends_on:
+      customer-service: { condition: service_started }
+      account-service: { condition: service_started }
+      transaction-service: { condition: service_started }
+      compliance-service: { condition: service_started }
+      notification-service: { condition: service_started }
+    ports: ["8080:8080"]
+    networks: [digibank]
+  customer-db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: customer_db, POSTGRES_USER: digibank, POSTGRES_PASSWORD: digibank }
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U digibank -d customer_db"], interval: 5s, timeout: 5s, retries: 10 }
+    networks: [digibank]
+  account-db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: account_db, POSTGRES_USER: digibank, POSTGRES_PASSWORD: digibank }
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U digibank -d account_db"], interval: 5s, timeout: 5s, retries: 10 }
+    networks: [digibank]
+  transaction-db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: transaction_db, POSTGRES_USER: digibank, POSTGRES_PASSWORD: digibank }
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U digibank -d transaction_db"], interval: 5s, timeout: 5s, retries: 10 }
+    networks: [digibank]
+  compliance-db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: compliance_db, POSTGRES_USER: digibank, POSTGRES_PASSWORD: digibank }
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U digibank -d compliance_db"], interval: 5s, timeout: 5s, retries: 10 }
+    networks: [digibank]
+
+  customer-service:
+    build: { context: ., dockerfile: customer-service/Dockerfile }
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://customer-db:5432/customer_db
+      SPRING_DATASOURCE_USERNAME: digibank
+      SPRING_DATASOURCE_PASSWORD: digibank
+    depends_on: { customer-db: { condition: service_healthy } }
+    ports: ["8081:8081"]
+    networks: [digibank]
+  account-service:
+    build: { context: ., dockerfile: account-service/Dockerfile }
+    environment:
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://account-db:5432/account_db
+      SPRING_DATASOURCE_USERNAME: digibank
+      SPRING_DATASOURCE_PASSWORD: digibank
+    depends_on: { account-db: { condition: service_healthy } }
+    ports: ["8082:8082"]
+    networks: [digibank]
+  transaction-service:
+    build: { context: ., dockerfile: transaction-service/Dockerfile }
+    environment:
+      SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://transaction-db:5432/transaction_db
+      SPRING_DATASOURCE_USERNAME: digibank
+      SPRING_DATASOURCE_PASSWORD: digibank
+      ACCOUNT_SERVICE_URL: http://account-service:8082
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
+    depends_on: { transaction-db: { condition: service_healthy }, account-service: { condition: service_started }, notification-service: { condition: service_started } }
+    ports: ["8083:8083"]
+    networks: [digibank]
+  compliance-service:
+    build: { context: ., dockerfile: compliance-service/Dockerfile }
+    environment:
+      SERVER_PORT: 8084
+      SPRING_DATASOURCE_URL: jdbc:postgresql://compliance-db:5432/compliance_db
+      SPRING_DATASOURCE_USERNAME: digibank
+      SPRING_DATASOURCE_PASSWORD: digibank
+    depends_on: { compliance-db: { condition: service_healthy } }
+    ports: ["8084:8084"]
+    networks: [digibank]
+  notification-service:
+    build: { context: ., dockerfile: notification-service/Dockerfile }
+    environment: { SERVER_PORT: 8085 }
+    ports: ["8085:8085"]
+    networks: [digibank]
+
+networks:
+  digibank:
+    driver: bridge

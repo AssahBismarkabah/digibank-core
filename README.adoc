@@ -1,39 +1,32 @@
-= Digi Bank
+= Digi Bank Microservices
 
-Digi Bank is a reference implementation of a core banking platform built as a
-modular monolith using Spring Boot 4.x. It demonstrates modern Spring Boot
-patterns: DTOs, Bean Validation, `@RestControllerAdvice` for error handling,
-BigDecimal for monetary values, Spring Data JPA repositories, and Docker
-Compose deployment.
-
-The project is organized into 7 Maven modules with strong module boundaries,
-designed to be split into microservices later if needed.
-
-This is an educational project for the Cloud Computing Professional License
-course (June 2026). It is the Spring Boot migration of the original Jakarta EE
-10 implementation (see the `legacy/jakarta-ee` branch).
+This branch contains the standalone Spring Boot microservices implementation
+for Workshop 4. The previous monolith implementation is available on `main`.
 
 == Quick Start
 
 [source,shell]
 ----
-cd digibank-parent
-make verify
+make build
+make image-build
+make up
+make smoke
 ----
 
-This builds the project, starts PostgreSQL and the application, runs smoke
-tests, then shuts everything down. Requires Docker.
+Use `make status`, `make logs`, `make restart`, `make down`, and `make clean`
+for the remaining lifecycle operations. Detailed commands are documented in
+`digibank-microservices/README.adoc`.
 
-For step-by-step instructions, see the link:docs/00_getting_started.adoc[Getting Started guide].
+This is an educational project for the Cloud Computing Professional License
+course (June 2026), focused on service boundaries, independent persistence,
+inter-service calls, container orchestration, and CI validation.
 
 == Documentation
 
-* link:docs/00_getting_started.adoc[Getting Started]  prerequisites, deployment, troubleshooting
-* link:docs/01_commands.adoc[Commands] build, test, deployment, smoke-test, and security commands
-* link:docs/05_modernizations.adoc[Modernizations]  improvements over the Jakarta EE implementation
+* link:docs/07_microservice_architecture.adoc[Microservice architecture] assignment and deliverables
+* link:digibank-microservices/README.adoc[Microservice commands] build, deployment, and smoke checks
 
 == Project Status
 
-This is an educational project for the Cloud Computing Professional License
-course. It is the Spring Boot migration of the Jakarta EE implementation on
-the `legacy/jakarta-ee` branch.
+This branch is the microservice implementation. The previous implementation
+is kept on `main` for migration comparison.

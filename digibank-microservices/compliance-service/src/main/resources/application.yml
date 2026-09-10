@@ -1,0 +1,9 @@
+server.port: ${SERVER_PORT:8084}
+spring:
+  application.name: compliance-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:compliance;MODE=PostgreSQL}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+  jpa.hibernate.ddl-auto: validate
+  flyway.enabled: true
