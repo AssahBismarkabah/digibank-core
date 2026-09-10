@@ -11,7 +11,10 @@ check() {
   printf 'Checking %-16s %s\n' "$name" "$url"
   local attempt
   for attempt in $(seq 1 30); do
-    if curl --fail --silent --show-error --max-time 5 "$url" >/dev/null; then
+    local response
+    if response="$(curl --fail --silent --show-error --max-time 5 \
+      -H 'Accept: application/json' "$url")" &&
+      ! grep -qi '<!doctype html\|<html' <<<"$response"; then
       return 0
     fi
     sleep 2
