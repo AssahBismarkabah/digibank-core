@@ -3,28 +3,29 @@ skinparam monochrome true
 skinparam shadowing false
 skinparam componentStyle uml2
 skinparam linetype ortho
-title Digi Bank\nCentralized Configuration Flow
+title Digi Bank\nCentralized Configuration Boundary
 
 artifact "Environment variables\nlocal / CI overrides" as env
 component "Config Server\n:8888" as config
 
-node "Business services" as services {
+node "Configuration clients" as clients {
   component "API Gateway" as gateway
   component "Customer Service" as customer
   component "Account Service" as account
   component "Transaction Service" as transaction
   component "Compliance Service" as compliance
+  gateway -[hidden]down- customer
+  customer -[hidden]down- account
+  account -[hidden]down- transaction
+  transaction -[hidden]down- compliance
 }
 
-env ..> config : override
-config --> gateway : gateway settings
-config --> customer : customer settings
-config --> account : account settings
-config --> transaction : transaction settings
-config --> compliance : compliance settings
+env --> config : override
+config --> clients : GET /config/{service}
 
-note bottom
-  Services read their settings from the lightweight HTTP config boundary.
-  Environment variables can override local values in CI or Compose.
+note right of clients
+  Each service receives its own
+  settings from the same boundary.
+  Docker Compose supplies the local host.
 end note
 @enduml
