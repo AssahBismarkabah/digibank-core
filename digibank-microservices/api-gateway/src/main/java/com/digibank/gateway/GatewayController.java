@@ -19,12 +19,13 @@ public class GatewayController {
     private final String notificationUrl;
 
     public GatewayController(
+            RestClient.Builder builder,
             @Value("${services.customer-url}") String customerUrl,
             @Value("${services.account-url}") String accountUrl,
             @Value("${services.transaction-url}") String transactionUrl,
             @Value("${services.compliance-url}") String complianceUrl,
             @Value("${services.notification-url}") String notificationUrl) {
-        this.builder = RestClient.builder();
+        this.builder = builder;
         this.customerUrl = customerUrl;
         this.accountUrl = accountUrl;
         this.transactionUrl = transactionUrl;
