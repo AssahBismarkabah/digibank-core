@@ -62,7 +62,151 @@ The baseline campaign is used to record the actual behavior before security
 enforcement. Findings are categorized as functional behavior, security
 behavior, scanner observations, or accepted educational limitations.
 
-[options="header"]
+
+== Workshop 2 Static Analysis Continuation
+
+Workshop 2 extends this security work from runtime observation to static analysis.
+The purpose is to inspect the source code, configuration, dependencies and test
+strength before the application is executed. This is the Shift Left step: risks
+are identified close to the point where they are introduced, then corrected and
+rechecked before the runtime validation from Workshop 1.
+
+=== Static analysis scope
+
+The current Spring Boot microservices implementation is the system under review.
+The analysis covers the API Gateway, business services, platform services,
+Maven dependencies, application configuration, Docker and Compose files, REST
+controllers, DTO validation, exception handling, inter-service calls and tests
+around security-sensitive behavior. The workshop document refers to the earlier
+Java 17 modular-monolith version; this implementation uses the current Java 21
+microservices parent and its eight Maven modules.
+
+=== Reproducible commands
+
+The repository exposes the static checks through the root Makefile:
+
+[source,shell]
+----
+make build
+make sast-dependency-check
+make sast-pitest
+make sast
+make sast-sonar
+----
+
+`make sast-dependency-check` generates the OWASP Dependency-Check report.
+`make sast-pitest` generates mutation-testing reports. `make sast-sonar` sends
+the project to a reachable SonarQube server and requires a token. The combined
+`make sast` command runs the local Dependency-Check and PITest controls.
+
+=== Local SonarQube configuration
+
+SonarQube is not required for ordinary local builds. It is required locally only
+when a SonarQube server is running and a local dashboard is needed. In that case
+set the values in the shell, not in a committed file:
+
+[source,shell]
+----
+export SONAR_HOST_URL=http://localhost:9000
+export SONAR_ORGANIZATION=<sonarcloud-organization>
+export SONAR_PROJECT_KEY=<sonarcloud-project-key>
+export SONAR_TOKEN=<local-sonarqube-token>
+make sast-sonar
+----
+
+The token must remain outside Git. The GitHub Actions SonarCloud job supplies
+`SONAR_HOST_URL`, `SONAR_ORGANIZATION`, `SONAR_PROJECT_KEY` and `SONAR_TOKEN`
+through repository secrets and runs the same Maven analysis used locally.
+
+=== Static-analysis evidence still to collect
+
+The findings must come from the completed scans. The report will be extended
+with the actual results for:
+
+* SonarQube issues, security hotspots and quality observations;
+* Dependency-Check findings and their severity;
+* PITest mutation score and surviving mutants;
+* source locations reviewed before remediation;
+* code or configuration changes made in response;
+* tests and repeat scans demonstrating the result; and
+* findings retained as false positives, accepted risks or educational limits.
+
+No Workshop 2 finding is treated as complete until it has an observed result,
+an interpretation, a remediation decision and a revalidation result.
+
+=== SonarCloud baseline execution
+
+The SonarCloud analysis was executed again after JaCoCo coverage generation.
+All nine Maven projects reached `BUILD SUCCESS`, and SonarCloud accepted the
+analysis for project `assahbismarkabah_digibank`.
+
+The dashboard is available at:
+
+https://sonarcloud.io/dashboard?id=assahbismarkabah_digibank
+
+The analysis processed 74 source files across the microservices implementation.
+The updated dashboard reports 33.2% overall coverage and 2.8% duplication.
+JaCoCo XML reports were generated for the tested services. The notification
+service has no test sources, so it does not produce execution data.
+
+=== Workshop 2 completion status
+
+The following controls are configured and reproducible:
+
+* Maven compilation and automated tests pass for all nine Maven projects;
+* JaCoCo coverage report generation is enabled for tested modules;
+* SonarCloud source analysis has completed successfully;
+* OWASP Dependency-Check has a Make target and a CI report-upload path;
+* PITest has a Make target and a CI report-upload path; and
+* the existing GitHub Actions workflow preserves static-analysis reports even
+  when a scan fails;
+* the CI workflow caches the Dependency-Check NVD database between runs; and
+* SonarCloud runs as a separate CI job with repository secrets and JaCoCo
+  coverage generation.
+
+Dependency-Check still needs its actual baseline findings to be recorded. No
+finding is described as remediated until its output has been reviewed.
+
+The PITest baseline has now been executed successfully after adding the PITest
+JUnit 5 adapter required by the current test stack. All eligible Maven modules
+completed mutation analysis and the reactor ended with `BUILD SUCCESS`.
+Mutation results are module-specific: some modules killed all generated
+mutants, while the gateway and business services also contain surviving or
+uncovered mutants. Those results are test-strength observations to review, not
+PITest execution failures. HTML reports are generated under each eligible
+module's `target/pit-reports/index.html` directory.
+
+=== SonarCloud finding decisions
+
+The updated SonarCloud dashboard reports a passed quality gate, 33.2% overall
+coverage, 2.8% duplication and 30 open issues. Two security issues are visible
+in the security snapshot:
+
+* The High CSRF finding is an intentional configuration decision for this
+  workshop API. The gateway uses HTTP Basic authentication, has a stateless
+  session policy and does not create browser sessions or authentication
+  cookies. CSRF protection is designed for browser credentials automatically
+  attached to stateful sessions; the Newman session-behavior checks verify the
+  selected stateless model. This remains an accepted, documented limitation
+  rather than an unreviewed finding.
+* The Medium URL-construction finding is treated as a real issue. Gateway path
+  variables are now encoded with `UriUtils.encodePathSegment` before they are
+  forwarded to downstream services. This prevents path-variable contents from
+  changing the downstream request path while preserving the existing API
+  routes.
+
+The remaining pasted findings are informational timestamp observations. They
+identify uses of `LocalDateTime.now()` in account and compliance error models
+and in the gateway exception handler. They do not expose secrets, alter
+authorization, or create an injection path. They are retained as a consistency
+and maintainability follow-up: if timestamps become part of a cross-service
+contract, they should be standardized on an explicit UTC `Clock` or `Instant`.
+They are not treated as Workshop 2 security remediations.
+
+The SonarCloud screenshots in
+`docs/devsecops/presentation/assets/screenshots/` provide the dashboard and
+open-issues evidence. The next SonarCloud analysis after the gateway change
+should confirm that the URL-construction finding is resolved.
 |===
 | Finding | Runtime observation | Risk | Evidence
 | B-01 | Business API routes were reachable without gateway authentication. | Any caller could reach exposed operations. | Baseline Newman report

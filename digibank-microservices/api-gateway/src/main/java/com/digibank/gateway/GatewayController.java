@@ -5,7 +5,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @RestController
@@ -45,7 +47,7 @@ public class GatewayController {
 
     @GetMapping({"/accounts", "/accounts/{id}", "/accounts/by-customer/{customerId}"})
     public ResponseEntity<Object> accountRead(@PathVariable Map<String, String> variables) {
-        String path = variables.containsKey("customerId") ? "/by-customer/" + variables.get("customerId") : suffix(variables.get("id"));
+        String path = variables.containsKey("customerId") ? "/by-customer/" + pathSegment(variables.get("customerId")) : suffix(variables.get("id"));
         return forward(accountUrl, "/api/accounts" + path, HttpMethod.GET);
     }
 
@@ -56,7 +58,7 @@ public class GatewayController {
 
     @GetMapping({"/transactions", "/transactions/{id}", "/transactions/by-account/{accountId}"})
     public ResponseEntity<Object> transactionRead(@PathVariable Map<String, String> variables) {
-        String path = variables.containsKey("accountId") ? "/by-account/" + variables.get("accountId") : suffix(variables.get("id"));
+        String path = variables.containsKey("accountId") ? "/by-account/" + pathSegment(variables.get("accountId")) : suffix(variables.get("id"));
         return forward(transactionUrl, "/api/transactions" + path, HttpMethod.GET);
     }
 
@@ -67,7 +69,7 @@ public class GatewayController {
 
     @GetMapping({"/compliance", "/compliance/{id}", "/compliance/by-customer/{customerId}"})
     public ResponseEntity<Object> complianceRead(@PathVariable Map<String, String> variables) {
-        String path = variables.containsKey("customerId") ? "/by-customer/" + variables.get("customerId") : suffix(variables.get("id"));
+        String path = variables.containsKey("customerId") ? "/by-customer/" + pathSegment(variables.get("customerId")) : suffix(variables.get("id"));
         return forward(complianceUrl, "/api/compliance" + path, HttpMethod.GET);
     }
 
@@ -94,6 +96,10 @@ public class GatewayController {
     }
 
     private String suffix(String id) {
-        return id == null ? "" : "/" + id;
+        return id == null ? "" : "/" + pathSegment(id);
+    }
+
+    private String pathSegment(String value) {
+        return UriUtils.encodePathSegment(value, StandardCharsets.UTF_8);
     }
 }

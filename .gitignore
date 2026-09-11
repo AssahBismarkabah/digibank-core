@@ -9,6 +9,7 @@
 .settings/
 .apt_generated/
 tmp/
+.env
 
 # OS
 .DS_Store

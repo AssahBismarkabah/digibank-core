@@ -1,7 +1,16 @@
 COMPOSE := docker compose -f docker-compose.yml
 MVN := mvn -B -f pom.xml
+DEPENDENCY_CHECK_DATA_DIR ?= $(HOME)/.m2/repository/org/owasp/dependency-check-data
 
-.PHONY: help build test package image-build up down restart status logs smoke validate-stack newman-scan zap-scan clean
+ifneq (,$(wildcard ../.env))
+include ../.env
+export SONAR_HOST_URL SONAR_ORGANIZATION SONAR_PROJECT_KEY SONAR_TOKEN
+endif
+
+SONAR_HOST_URL := $(or $(SONAR_HOST_URL),http://localhost:9000)
+export SONAR_HOST_URL SONAR_TOKEN NVD_API_KEY
+
+.PHONY: help build test package sast-dependency-check sast-pitest sast-sonar sast image-build up down restart status logs smoke validate-stack newman-scan zap-scan clean
 
 help: ## Show available microservice commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -15,6 +24,24 @@ test: ## Run all microservice tests
 
 package: ## Package all microservices without rerunning tests
 	$(MVN) package -DskipTests
+
+sast-dependency-check: ## Generate OWASP Dependency-Check reports
+	@test -n "$$NVD_API_KEY" || (echo "NVD_API_KEY is required; set it in the ignored root .env or the shell" >&2; exit 1)
+	$(MVN) org.owasp:dependency-check-maven:12.1.0:check -DnvdApiKey=$$NVD_API_KEY -Ddata.directory=$(DEPENDENCY_CHECK_DATA_DIR) -DfailBuildOnCVSS=11
+
+sast-pitest: ## Generate PITest mutation-testing reports
+	$(MVN) org.pitest:pitest-maven:1.17.4:mutationCoverage
+
+sast-sonar: ## Send the project to a configured SonarQube server
+	@test -n "$$SONAR_HOST_URL" || (echo "SONAR_HOST_URL is required; set it in the ignored root .env or the shell" >&2; exit 1)
+	@test -n "$$SONAR_ORGANIZATION" || (echo "SONAR_ORGANIZATION is required for SonarCloud" >&2; exit 1)
+	@test -n "$$SONAR_PROJECT_KEY" || (echo "SONAR_PROJECT_KEY is required for SonarCloud" >&2; exit 1)
+	@test -n "$$SONAR_TOKEN" || (echo "SONAR_TOKEN is required; set it in the ignored root .env or the shell" >&2; exit 1)
+	$(MVN) verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar -Dsonar.host.url=$(SONAR_HOST_URL) -Dsonar.organization=$(SONAR_ORGANIZATION) -Dsonar.projectKey=$(SONAR_PROJECT_KEY)
+
+sast: ## Generate Dependency-Check and PITest reports
+	$(MAKE) sast-dependency-check
+	$(MAKE) sast-pitest
 
 image-build: ## Build all service and infrastructure images
 	$(COMPOSE) build
