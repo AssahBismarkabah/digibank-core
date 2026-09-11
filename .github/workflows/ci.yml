@@ -87,8 +87,6 @@ jobs:
         run: make image-build
       - name: Install Trivy
         uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          version: v0.59.1
       - name: Scan images and Compose configuration
         run: make container-scan
       - name: Upload Trivy reports
