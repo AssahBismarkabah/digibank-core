@@ -73,8 +73,11 @@ newman-scan: ## Replay the API security collection against the local stack
 
 zap-scan: ## Run an OWASP ZAP baseline scan against the local gateway
 	@command -v docker >/dev/null 2>&1 || { echo "Docker is required for the ZAP scan" >&2; exit 1; }
-	docker run --rm --network host -v "$(CURDIR)/../dast/reports:/zap/wrk:rw" zaproxy/zap-stable zap-baseline.py \
-		-t http://127.0.0.1:8080/ -r zap-report.html -J zap-report.json -w zap-report.md || test $$? -eq 2
+	@docker run --rm --user root -v "$(CURDIR)/../dast/reports:/zap/wrk:rw" --entrypoint chown zaproxy/zap-stable -R zap:zap /zap/wrk
+	@rc=0; docker run --rm --network host -v "$(CURDIR)/../dast/reports:/zap/wrk:rw" zaproxy/zap-stable zap-baseline.py \
+		-t http://127.0.0.1:8080/ -r zap-report.html -J zap-report.json -w zap-report.md || rc=$$?; \
+		docker run --rm --user root -v "$(CURDIR)/../dast/reports:/zap/wrk:rw" --entrypoint chown zaproxy/zap-stable -R "$(shell id -u):$(shell id -g)" /zap/wrk; \
+		test $$rc -eq 0 -o $$rc -eq 2
 
 clean: ## Stop the stack and remove its database volumes
 	$(COMPOSE) down -v

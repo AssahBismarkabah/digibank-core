@@ -42,7 +42,7 @@ img.diagram { display: block; max-width: 100%; max-height: 105mm; margin: 12pt a
 <p>Static analysis examines source code and configuration before execution. Dynamic analysis complements it by interacting with the application while it is running. This matters because a system can compile, pass unit tests, and still expose an API route without authentication, return excessive technical detail, accept invalid input, or handle sessions incorrectly.</p>
 <div class="callout"><b>Central idea:</b> DAST checks what an external client can actually observe, not only what the source code appears to intend.</div>
 <p>This workshop therefore follows a before-and-after sequence: establish the runtime behavior, identify security weaknesses, apply targeted remediation, and replay the same scenarios to demonstrate the result.</p>
-<div class="evidence"><div class="label">Source basis</div> <code>docs/work1-devsecops-practices.adoc</code>, sections A3.1-A3.8 and the DAST method sections.</div>
+<div class="evidence"><div class="label">Source basis</div> <code>docs/work3-devsecops-practices.adoc.adoc</code>, sections A3.1-A3.8 and the DAST method sections.</div>
 </section>
 
 <section class="pagebreak">
@@ -68,7 +68,7 @@ make smoke
 make validate-stack
 make newman-scan
 make zap-scan</pre>
-<div class="evidence"><div class="label">Evidence to insert</div> Screenshot of <code>make status</code> or <code>docker compose ps</code>, followed by successful <code>make smoke</code> and <code>make validate-stack</code> output.</div>
+<div class="evidence"><div class="label">Evidence sources</div> Screenshots under <code>assets/screenshots/make-up.png</code>, <code>assets/screenshots/make-smoke.png</code>, <code>assets/screenshots/containers-servies.png</code>, and the reproducible <code>make smoke</code> / <code>make validate-stack</code> commands.</div>
 </section>
 
 <section class="pagebreak">
@@ -90,9 +90,9 @@ make zap-scan</pre>
 <table><tr><th>Campaign</th><th>Result</th></tr>
 <tr><td>Functional Newman collection</td><td>24 requests, 74 assertions, 0 failures.</td></tr>
 <tr><td>Security Newman collection</td><td>12 requests, 19 assertions, 0 failures.</td></tr>
-<tr><td>OWASP ZAP baseline</td><td>0 High, 1 Medium, 0 Low, 1 Informational.</td></tr></table>
-<p>The remaining Medium ZAP alert is the expected local warning that HTTP Basic credentials are sent over plain HTTP. It is acceptable only in this local educational environment and requires TLS in production. The Informational observation concerns public static-resource cacheability; authenticated API responses receive <code>Cache-Control: no-store, private</code>.</p>
-<div class="evidence"><div class="label">Evidence to insert</div> Newman functional/security summary screenshots and the ZAP Markdown/HTML summary page.</div>
+<tr><td>OWASP ZAP baseline</td><td>0 High, 1 Medium, 0 Low, 0 Informational.</td></tr></table>
+<p>The remaining Medium ZAP alert is the expected local warning that HTTP Basic credentials are sent over plain HTTP. It is acceptable only in this local educational environment and requires TLS in production.</p>
+<div class="evidence"><div class="label">Evidence sources</div> Newman screenshots under <code>assets/screenshots/newman-scan.png</code> and <code>assets/screenshots/newman-directory-result.png</code>, plus ZAP screenshots and reports under <code>assets/screenshots/zap-scan.png</code>, <code>assets/screenshots/alert-zap-scan.png</code>, and <code>dast/reports/</code>.</div>
 </section>
 
 <section class="pagebreak">

@@ -28,6 +28,10 @@ docker run --rm --network host \
   -t http://127.0.0.1:8080/ -r zap-report.html -J zap-report.json -w zap-report.md
 ```
 
+If the ZAP container user cannot write to `dast/reports`, use the Makefile
+target. It temporarily assigns the mounted report directory to ZAP for the
+scan, then restores ownership to the local project user.
+
 ### Option 3 – Docker Compose ZAP profile
 
 The local Makefile target and the CI job both scan the gateway at
@@ -105,12 +109,11 @@ npx newman run dast/postman/DigiBank-DAST-Validation.postman_collection.json \
 > * The Swagger check (4.2) is skipped until the springdoc/OpenAPI dependency
 >   lands.
 > * The `404 does not echo raw probe id` assertions (groups 3.x and 5.7)
->   currently fail because the app echoes the requested id in the not-found
->   message (e.g. `Compliance check not found with id: <id>`). They will pass
->   once the hardening work replaces those messages with generic text.
-> * Malformed JSON (2.6) is asserted to return **500** with the generic error
->   envelope — the app has no dedicated `HttpMessageNotReadableException`
->   handler today, so this is the real, verified behaviour.
+>   now document the remediation: service not-found handlers return generic
+>   public messages rather than echoing the probed id.
+> * Malformed JSON is asserted to return a controlled **4xx** response with the
+>   generic error envelope. Dedicated `HttpMessageNotReadableException`
+>   handlers are present in the gateway-facing services.
 
 ---
 
@@ -152,7 +155,6 @@ Use the versioned runner (recommended):
 
 ```bash
 ./dast/postman/newman-run.sh --env local           # blocking: exits 1 on failed assertions
-./dast/postman/newman-run.sh --env local                   # fails on assertion failures
 ```
 
 Or Newman directly:
@@ -163,8 +165,8 @@ npx newman run dast/postman/DigiBank-DAST-Validation.postman_collection.json \
   --reporters cli
 ```
 
-Reports are written to `dast/reports/<timestamp>/newman-report.{json,html}` and
-`dast/reports/latest` points at the newest run.
+Reports are written to `dast/reports/<timestamp>/` as separate functional and
+security JSON reports, and `dast/reports/latest` points at the newest run.
 
 ### Step 3 – interpret the report
 
@@ -200,7 +202,7 @@ cp dast/postman/DigiBank-local.postman_environment.json /tmp/digibank-local-8090
 npx newman run dast/postman/DigiBank-DAST-Validation.postman_collection.json \
   --environment /tmp/digibank-local-8090.json --reporters cli
 # cleanup
-docker rm -f digibank-app-test
+docker rm -f digibank-gateway-test
 ```
 
 ---
@@ -219,7 +221,6 @@ authentication and authorization failures are blocking. ZAP continues to
 report low-risk and educational findings without failing the workflow until
 they are reviewed and assigned an explicit remediation decision.
 
-```
 The build, container smoke test, Newman replay, and ZAP baseline are separate
 jobs so future security scanners can be added without mixing their reports or
 their failure policies.

@@ -6,7 +6,7 @@
 == Workshop Context
 
 This report documents the runtime security validation required by
-`work1-devsecops-practices.adoc`. Static analysis examines source code and
+`work3-devsecops-practices.adoc.adoc`. Static analysis examines source code and
 configuration before execution. DAST complements it by sending requests to a
 running DigiBank system and evaluating the externally observable responses.
 
@@ -69,7 +69,7 @@ Workshop 2 extends this security work from runtime observation to static analysi
 The purpose is to inspect the source code, configuration, dependencies and test
 strength before the application is executed. This is the Shift Left step: risks
 are identified close to the point where they are introduced, then corrected and
-rechecked before the runtime validation from Workshop 1.
+rechecked before the runtime validation from Workshop 3.
 
 === Static analysis scope
 
@@ -254,7 +254,7 @@ in the security snapshot:
   changing the downstream request path while preserving the existing API
   routes.
 
-The remaining pasted findings are informational timestamp observations. They
+The remaining findings are informational timestamp observations. They
 identify uses of `LocalDateTime.now()` in account and compliance error models
 and in the gateway exception handler. They do not expose secrets, alter
 authorization, or create an injection path. They are retained as a consistency
@@ -330,11 +330,9 @@ compared with the baseline rather than treated as an automatic claim that the
 application has no security risk.
 
 The latest local ZAP baseline reported zero High alerts, one Medium alert, zero
-Low alerts and one Informational alert. The Medium alert is the expected local
-HTTP Basic Auth over plain HTTP warning; production deployment must use TLS.
-The Informational alert concerns cacheability of the public root and static
-resource responses, not authenticated banking API responses, which receive
-`Cache-Control: no-store, private`.
+Low alerts and zero Informational alerts. The Medium alert is the expected
+local HTTP Basic Auth over plain HTTP warning; production deployment must use
+TLS.
 
 == Functional Regression
 
@@ -365,12 +363,12 @@ and assigned an explicit remediation decision.
 * ZAP reports a Medium local-only warning because HTTP Basic Auth is exercised
   over plain HTTP; this is not acceptable for production traffic and is why the
   workshop scope is explicitly local.
-* Informational cacheability observations for public static resources remain
-  visible in the report and are not treated as sensitive API data.
+* Scanner observations for public static resources are reviewed separately
+  from authenticated banking API responses.
 
 == Workshop Objective Mapping
 
-  [cols="1,4", options="header"]
+[cols="1,4", options="header"]
 |===
 | Objective | Evidence
 | A3.1 | This report's SAST/DAST explanation and runtime method.
