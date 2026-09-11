@@ -160,7 +160,8 @@ The following controls are configured and reproducible:
 * PITest has a Make target and a CI report-upload path; and
 * the existing GitHub Actions workflow preserves static-analysis reports even
   when a scan fails;
-* the CI workflow caches the Dependency-Check NVD database between runs; and
+* the CI workflow caches the Dependency-Check NVD database between runs and
+  checks for NVD updates at most once every seven days; and
 * SonarCloud runs as a separate CI job with repository secrets and JaCoCo
   coverage generation.
 
