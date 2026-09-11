@@ -25,7 +25,15 @@ jobs:
       - name: Build and test
         run: make build
       - name: Build container images
-        run: make image-build
+        run: |
+          for attempt in 1 2 3; do
+            if make image-build; then
+              exit 0
+            fi
+            echo "Image build failed; retrying in 15 seconds (attempt $attempt/3)"
+            sleep 15
+          done
+          exit 1
       - name: Start stack
         run: make up
       - name: Run smoke checks
@@ -84,7 +92,15 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
       - name: Build container images
-        run: make image-build
+        run: |
+          for attempt in 1 2 3; do
+            if make image-build; then
+              exit 0
+            fi
+            echo "Image build failed; retrying in 15 seconds (attempt $attempt/3)"
+            sleep 15
+          done
+          exit 1
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@e07451d2e059ed86c2870430ea286b3a9e0bf241 # v0.2.6
         with:
