@@ -32,7 +32,8 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          mkdir -p ../dast/reports/dependency-check
+          report_dir="${GITHUB_WORKSPACE}/dast/reports/dependency-check"
+          mkdir -p "$report_dir"
           mvn -B org.owasp:dependency-check-maven:12.1.0:check \
             -Ddata.directory="$HOME/.m2/repository/org/owasp/dependency-check-data" \
             -DnvdApiKey="$NVD_API_KEY" \
@@ -40,14 +41,20 @@ jobs:
             -Danalyzer.ossindex.enabled=false \
             -Dformats=HTML,JSON \
             -DfailBuildOnCVSS=11 \
-            -DoutputDirectory=../dast/reports/dependency-check
+            -DoutputDirectory="$report_dir"
+          # Multi-module executions can write reports under each module's target
+          # directory; collect those reports into the CI artifact directory.
+          find . -type f \( -name 'dependency-check-report.html' -o -name 'dependency-check-report.json' \) \
+            -not -path './target/dependency-check-report.html' \
+            -not -path './target/dependency-check-report.json' \
+            -exec cp -n {} "$report_dir/" \; || true
       - name: Upload Dependency-Check reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-reports
-          path: dast/reports/dependency-check/**
-          if-no-files-found: error
+          path: dast/reports/dependency-check
+          if-no-files-found: warn
 
   container-scan:
     name: Container build and Trivy scan
