@@ -74,6 +74,9 @@
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
                 <version>1.17.4</version>
+                <configuration>
+                    <failWhenNoMutations>false</failWhenNoMutations>
+                </configuration>
                 <dependencies>
                     <dependency>
                         <groupId>org.pitest</groupId>

@@ -293,6 +293,80 @@ termination strategy.
 
 == Revalidation
 
+== Workshop 3 Runtime Validation Continuation
+
+Workshop 3 validates the security improvements against the running
+microservices system. The purpose is to confirm that the controls identified
+through the earlier Newman and ZAP observations remain effective after the
+application is rebuilt and started through Docker Compose.
+
+Workshop 2 and Workshop 3 answer different questions. Workshop 2 asks,
+"What weaknesses can we identify in the source, dependencies, configuration
+and test suite before execution?" Workshop 3 asks, "After those findings are
+fixed, what can an external client actually observe when the application is
+running?" This second question is necessary because a source-level correction
+can still be incorrectly wired, applied only to one route, break a valid
+business flow or behave differently after deployment.
+
+The Workshop 3 validation is therefore a post-remediation check, not an
+unrelated scan and not a repetition of static analysis. It uses the same
+gateway boundary and the same security expectations to demonstrate that the
+fixes from Workshop 2 and the earlier runtime remediation are effective in
+the deployed Compose topology.
+
+=== Runtime validation sequence
+
+The validation starts with a clean build and a ready runtime. Smoke checks
+confirm that the gateway, business services and platform services are
+available. The Postman collections then exercise the system as an external
+client would: normal requests, missing or invalid credentials, insufficient
+roles, malformed data, invalid identifiers and unknown resources. Newman
+repeats these checks from the command line, while ZAP provides an independent
+scan of the gateway surface.
+
+=== Findings carried into runtime validation
+
+The earlier security work addressed unauthenticated business routes, missing
+role separation, overly detailed error paths, incomplete response headers and
+missing explicit cache controls for sensitive API responses. The fixes are
+enforced at the gateway, where the external API boundary is visible, while
+the internal service topology remains unchanged.
+
+=== Post-remediation observations
+
+The current rebuilt stack demonstrates the expected behavior:
+
+* missing or invalid credentials receive `401 Unauthorized`;
+* an authenticated `USER` receives `403 Forbidden` for the protected
+  compliance route;
+* an authenticated `ADMIN` can access the permitted administrative route;
+* malformed JSON and invalid requests return controlled `4xx` responses;
+* unknown resources do not return stack traces, SQL details, Java class names
+  or internal paths;
+* authenticated API responses include the expected security and cache headers;
+  and
+* the stateless gateway does not create a session cookie.
+
+=== Final runtime result
+
+The final replay after rebuilding the Docker images completed successfully.
+The functional collection ran 24 requests with 74 assertions and zero
+failures. The security collection ran 12 requests with 19 assertions and
+zero failures. Smoke validation and the complete Compose-container check also
+passed before the collections were executed.
+
+The independent ZAP baseline completed with zero failures and 65 passing rules.
+It reported two warnings: non-storable content on public root or robots
+resources, and the local plain-HTTP warning associated with the sitemap
+authentication response. These are documented limitations of the local
+workshop surface, not evidence of an authentication bypass or cacheable
+authenticated banking responses.
+
+This sequence demonstrates the remediation at runtime: the system starts,
+readiness passes, targeted HTTP assertions pass, the broader ZAP scan
+completes, and the remaining scanner observations are interpreted against the
+intended local environment.
+
 `DigiBank-DAST-Validation.postman_collection.json` verifies authenticated
 functional regression. `DigiBank-DAST-Security.postman_collection.json` covers
 the eight workshop categories:
@@ -325,16 +399,25 @@ The latest local replay completed successfully:
   controlled `4xx` responses without stack traces or internal class names.
 * Session behavior: authenticated requests did not create a session cookie.
 
+The validation was replayed again after rebuilding the Docker images with the
+current dependency versions. Smoke checks and the complete Compose-container
+check passed. The functional collection again completed with 24 requests and
+74 assertions, with zero failures. The security collection completed with 12
+requests and 19 assertions, with zero failures. The fresh Newman reports are
+stored under `dast/reports/20260911-114624/`.
+
 The ZAP report is generated separately by `make zap-scan`. ZAP findings must be
 compared with the baseline rather than treated as an automatic claim that the
 application has no security risk.
 
-The latest local ZAP baseline reported zero High alerts, one Medium alert, zero
-Low alerts and one Informational alert. The Medium alert is the expected local
-HTTP Basic Auth over plain HTTP warning; production deployment must use TLS.
-The Informational alert concerns cacheability of the public root and static
-resource responses, not authenticated banking API responses, which receive
-`Cache-Control: no-store, private`.
+The fresh local ZAP baseline completed with zero failures and 65 passing rules.
+It reported two warnings: non-storable content for the public root and
+unauthorized sitemap/robots responses, and the weak-authentication rule for an
+unauthorized sitemap response. These are runtime observations of the local
+educational surface, not evidence that authenticated banking API responses are
+cacheable or that protected business routes bypass authentication. The
+authenticated API responses continue to receive `Cache-Control: no-store,
+private`. The ZAP reports are stored under `dast/reports/`.
 
 == Functional Regression
 
