@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  DOCKER_BUILDKIT: '1'
+
 jobs:
   build-test-smoke:
     name: Build, test, containerize, and smoke-test
@@ -35,7 +38,15 @@ jobs:
           done
           exit 1
       - name: Start stack
-        run: make up
+        run: |
+          for attempt in 1 2 3; do
+            if make up; then
+              exit 0
+            fi
+            echo "Stack start failed; retrying in 15 seconds (attempt $attempt/3)"
+            sleep 15
+          done
+          exit 1
       - name: Run smoke checks
         run: make smoke
       - name: Validate running service set
@@ -160,7 +171,15 @@ jobs:
         with:
           node-version: '22'
       - name: Start stack
-        run: make up
+        run: |
+          for attempt in 1 2 3; do
+            if make up; then
+              exit 0
+            fi
+            echo "Stack start failed; retrying in 15 seconds (attempt $attempt/3)"
+            sleep 15
+          done
+          exit 1
       - name: Wait for stack readiness
         run: make smoke
       - name: Validate running service set
@@ -189,7 +208,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start stack
-        run: make up
+        run: |
+          for attempt in 1 2 3; do
+            if make up; then
+              exit 0
+            fi
+            echo "Stack start failed; retrying in 15 seconds (attempt $attempt/3)"
+            sleep 15
+          done
+          exit 1
       - name: Wait for stack readiness
         run: make smoke
       - name: Validate running service set
