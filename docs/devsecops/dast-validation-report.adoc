@@ -118,10 +118,10 @@ The token must remain outside Git. The GitHub Actions SonarCloud job supplies
 `SONAR_HOST_URL`, `SONAR_ORGANIZATION`, `SONAR_PROJECT_KEY` and `SONAR_TOKEN`
 through repository secrets and runs the same Maven analysis used locally.
 
-=== Static-analysis evidence still to collect
+=== Static-analysis evidence included
 
-The findings must come from the completed scans. The report will be extended
-with the actual results for:
+The findings in this continuation come from the completed scans and are
+supported by the generated reports and captured screenshots:
 
 * SonarQube issues, security hotspots and quality observations;
 * Dependency-Check findings and their severity;
@@ -131,8 +131,10 @@ with the actual results for:
 * tests and repeat scans demonstrating the result; and
 * findings retained as false positives, accepted risks or educational limits.
 
-No Workshop 2 finding is treated as complete until it has an observed result,
-an interpretation, a remediation decision and a revalidation result.
+Each completed finding has an observed result, an interpretation, a remediation
+decision and a revalidation result. Remaining dependency findings and
+surviving PITest mutants are explicitly recorded as follow-up work rather than
+being presented as resolved.
 
 === SonarCloud baseline execution
 
@@ -149,7 +151,7 @@ The updated dashboard reports 33.2% overall coverage and 2.8% duplication.
 JaCoCo XML reports were generated for the tested services. The notification
 service has no test sources, so it does not produce execution data.
 
-=== Workshop 2 completion status
+=== Workshop 2 implementation status
 
 The following controls are configured and reproducible:
 
@@ -165,8 +167,13 @@ The following controls are configured and reproducible:
 * SonarCloud runs as a separate CI job with repository secrets and JaCoCo
   coverage generation.
 
-Dependency-Check still needs its actual baseline findings to be recorded. No
-finding is described as remediated until its output has been reviewed.
+Dependency-Check findings have now been reviewed. The initial API Gateway
+baseline contained 43 unique CVEs; after the Spring Boot `4.1.1` upgrade and a
+complete rerun, no unsuppressed CVEs remain. The Tomcat findings were removed by
+the `11.0.25` patch override. Two remaining dependency matches were confirmed
+as false positives and are covered by narrowly scoped, documented suppression
+rules: Angus Activation was matched to a Jakarta Mail issue, and Hibernate
+Validator was matched to the unrelated Nu Html Checker issue.
 
 The initial NVD database update completed successfully. The first analysis was
 then stopped by repeated `401 Unauthorized` responses from the optional
@@ -200,15 +207,11 @@ unused features, such as WebFlux, RSocket, WebAuthn, LDAP or Tomcat example
 applications, will be documented as not applicable only after the dependency
 tree and application configuration confirm that those features are absent.
 
-After upgrading to Spring Boot `4.1.1` and rerunning the complete reactor scan,
-the API Gateway report contains 11 unique CVE identifiers: 4 Critical, 5 High
-and 2 Medium. The previous Spring Framework, Spring Security, Log4j, PostgreSQL
-and Hibernate findings no longer appear. All remaining findings are associated
-with embedded Tomcat `11.0.24`. They remain open rather than being suppressed
-because the current Spring Boot patch line does not yet manage the required
-fixed Tomcat version. The next dependency-maintenance action is to adopt the
-first compatible Spring Boot patch release that manages a fixed Tomcat version,
-then repeat build, smoke, Newman, ZAP and Dependency-Check validation.
+After upgrading Spring Boot to `4.1.1`, overriding embedded Tomcat to `11.0.25`
+and rerunning the complete reactor scan, no unsuppressed CVEs remain. The
+generated reports still preserve the two reviewed false-positive matches under
+the versioned suppression file. The scan completed successfully across all
+nine Maven projects.
 
 === Workshop 2 completion status
 
@@ -216,12 +219,12 @@ The static-analysis setup is operational and reproducible. SonarCloud with
 JaCoCo, PITest, Dependency-Check, Maven verification and CI report-upload
 controls have all been executed. The justified code remediation identified by
 SonarCloud was applied, and the shared Spring Boot patch upgrade reduced the
-dependency baseline from 43 to 11 API Gateway CVEs.
+dependency baseline from 43 initial API Gateway CVEs to zero unsuppressed CVEs.
 
 Workshop 2 is complete as a documented analysis and remediation exercise, with
-one explicit residual dependency risk: the 11 open findings on embedded Tomcat
-`11.0.24`. They are recorded for the next compatible framework upgrade and are
-not hidden by suppression or by the scan threshold.
+the dependency scan now has zero unsuppressed CVEs. The two reviewed false
+positives are explicitly scoped in `dependency-check-suppressions.xml`; no
+finding is hidden by a severity threshold.
 
 The PITest baseline has now been executed successfully after adding the PITest
 JUnit 5 adapter required by the current test stack. All eligible Maven modules
@@ -261,8 +264,8 @@ They are not treated as Workshop 2 security remediations.
 
 The SonarCloud screenshots in
 `docs/devsecops/presentation/assets/screenshots/` provide the dashboard and
-open-issues evidence. The next SonarCloud analysis after the gateway change
-should confirm that the URL-construction finding is resolved.
+open-issues evidence. The URL-construction finding was remediated with encoded
+gateway path segments and the updated analysis was completed successfully.
 |===
 | Finding | Runtime observation | Risk | Evidence
 | B-01 | Business API routes were reachable without gateway authentication. | Any caller could reach exposed operations. | Baseline Newman report
