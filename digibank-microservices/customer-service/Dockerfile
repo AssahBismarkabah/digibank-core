@@ -13,5 +13,7 @@ COPY customer-service/src customer-service/src
 RUN mvn -B -pl customer-service -am package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+RUN addgroup -S digibank && adduser -S -G digibank digibank
 COPY --from=build /workspace/customer-service/target/customer-service-*.jar app.jar
+USER digibank
 ENTRYPOINT ["java", "-jar", "app.jar"]

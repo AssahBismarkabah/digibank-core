@@ -14,4 +14,5 @@ RUN mvn -B -pl config-server -am package -DskipTests
 
 FROM eclipse-temurin:21-jre
 COPY --from=build /workspace/config-server/target/config-server-*.jar /app/app.jar
+USER 10001:10001
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -13,5 +13,7 @@ COPY notification-service/src notification-service/src
 RUN mvn -B -pl notification-service -am package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+RUN addgroup -S digibank && adduser -S -G digibank digibank
 COPY --from=build /workspace/notification-service/target/notification-service-*.jar app.jar
+USER digibank
 ENTRYPOINT ["java", "-jar", "app.jar"]

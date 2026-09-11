@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+**/target
+**/node_modules
+dast/reports
+.env
+.env.*
+*.log
+README*
+Dockerfile*
