@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM maven:3-eclipse-temurin-21 AS build
 WORKDIR /workspace
 COPY pom.xml .
@@ -10,7 +11,8 @@ COPY transaction-service/pom.xml transaction-service/pom.xml
 COPY compliance-service/pom.xml compliance-service/pom.xml
 COPY notification-service/pom.xml notification-service/pom.xml
 COPY compliance-service/src compliance-service/src
-RUN mvn -B -pl compliance-service -am package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 \
+    sh -c 'for attempt in 1 2 3; do mvn -B -ntp -pl compliance-service -am package -DskipTests && exit 0; sleep $((attempt * 10)); done; exit 1'
 FROM eclipse-temurin:21-jre-alpine
 RUN apk upgrade --no-cache
 WORKDIR /app
