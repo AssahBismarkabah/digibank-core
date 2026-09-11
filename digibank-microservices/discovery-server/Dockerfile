@@ -12,6 +12,10 @@ COPY notification-service/pom.xml notification-service/pom.xml
 COPY discovery-server/src discovery-server/src
 RUN mvn -B -pl discovery-server -am package -DskipTests
 
-FROM eclipse-temurin:21-jre
-COPY --from=build /workspace/discovery-server/target/discovery-server-*.jar /app/app.jar
+FROM eclipse-temurin:21-jre-alpine
+RUN apk upgrade --no-cache
+WORKDIR /app
+RUN addgroup -S digibank && adduser -S -G digibank digibank
+COPY --from=build --chown=digibank:digibank /workspace/discovery-server/target/discovery-server-*.jar /app/app.jar
+USER digibank
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

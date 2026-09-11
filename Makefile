@@ -1,4 +1,4 @@
-.PHONY: help build test sast-dependency-check sast-pitest sast-sonar sast image-build up restart status logs smoke validate-stack newman-scan zap-scan down clean
+.PHONY: help build test sast-dependency-check sast-pitest sast-sonar sast image-build container-scan up restart status logs smoke validate-stack newman-scan zap-scan down clean
 
 help:
 	$(MAKE) -C digibank-microservices help
@@ -16,6 +16,8 @@ sast:
 	$(MAKE) -C digibank-microservices sast
 image-build:
 	$(MAKE) -C digibank-microservices image-build
+container-scan:
+	$(MAKE) -C digibank-microservices container-scan
 up:
 	$(MAKE) -C digibank-microservices up
 restart:

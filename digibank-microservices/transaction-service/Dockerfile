@@ -12,6 +12,9 @@ COPY notification-service/pom.xml notification-service/pom.xml
 COPY transaction-service/src transaction-service/src
 RUN mvn -B -pl transaction-service -am package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
+RUN apk upgrade --no-cache
 WORKDIR /app
-COPY --from=build /workspace/transaction-service/target/transaction-service-*.jar app.jar
+RUN addgroup -S digibank && adduser -S -G digibank digibank
+COPY --from=build --chown=digibank:digibank /workspace/transaction-service/target/transaction-service-*.jar app.jar
+USER digibank
 ENTRYPOINT ["java", "-jar", "app.jar"]

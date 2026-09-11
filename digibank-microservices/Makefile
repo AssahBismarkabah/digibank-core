@@ -11,7 +11,7 @@ endif
 SONAR_HOST_URL := $(or $(SONAR_HOST_URL),http://localhost:9000)
 export SONAR_HOST_URL SONAR_TOKEN NVD_API_KEY
 
-.PHONY: help build test package sast-dependency-check sast-pitest sast-sonar sast image-build up down restart status logs smoke validate-stack newman-scan zap-scan clean
+.PHONY: help build test package sast-dependency-check sast-pitest sast-sonar sast image-build container-scan up down restart status logs smoke validate-stack newman-scan zap-scan clean
 
 help: ## Show available microservice commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -46,6 +46,23 @@ sast: ## Generate Dependency-Check and PITest reports
 
 image-build: ## Build all service and infrastructure images
 	$(COMPOSE) build
+
+container-scan: ## Scan built images and container configuration with Trivy
+	@command -v trivy >/dev/null 2>&1 || { echo "Trivy is required; install it or use the CI container-scan job" >&2; exit 1; }
+	@mkdir -p ../dast/reports/container-scan
+	@set -u; status=0; for image in $$($(COMPOSE) config --images | sort -u | grep -v '^postgres:'); do \
+		echo "Scanning $$image"; \
+		trivy image --scanners vuln,secret --format json --output "../dast/reports/container-scan/$${image##*/}.json" --ignore-unfixed --exit-code 0 "$$image"; \
+		trivy image --scanners vuln,secret --format sarif --output "../dast/reports/container-scan/$${image##*/}.sarif" --ignore-unfixed --exit-code 0 "$$image"; \
+		trivy image --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$$image" || status=1; \
+	done; \
+	trivy config --format json --output ../dast/reports/container-scan/docker-compose-config.json --exit-code 0 docker-compose.yml; \
+	trivy config --format sarif --output ../dast/reports/container-scan/docker-compose-config.sarif --exit-code 0 docker-compose.yml; \
+	trivy config --severity HIGH,CRITICAL --exit-code 1 docker-compose.yml || status=1; \
+	trivy fs --scanners vuln,secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --format json --output ../dast/reports/container-scan/filesystem.json --exit-code 0 .; \
+	trivy fs --scanners vuln,secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --format sarif --output ../dast/reports/container-scan/filesystem.sarif --exit-code 0 .; \
+	trivy fs --scanners vuln,secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --severity HIGH,CRITICAL --exit-code 1 . || status=1; \
+	exit $$status
 
 up: ## Start the complete microservice stack in the background
 	$(COMPOSE) up -d

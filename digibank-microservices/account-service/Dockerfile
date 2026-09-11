@@ -12,6 +12,9 @@ COPY notification-service/pom.xml notification-service/pom.xml
 COPY account-service/src account-service/src
 RUN mvn -B -pl account-service -am package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
+RUN apk upgrade --no-cache
 WORKDIR /app
-COPY --from=build /workspace/account-service/target/account-service-*.jar app.jar
+RUN addgroup -S digibank && adduser -S -G digibank digibank
+COPY --from=build --chown=digibank:digibank /workspace/account-service/target/account-service-*.jar app.jar
+USER digibank
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -451,6 +451,96 @@ and assigned an explicit remediation decision.
 * Informational cacheability observations for public static resources remain
   visible in the report and are not treated as sensitive API data.
 
+== Workshop 4 Container and Dependency Security
+
+Workshop 4 extends the previous analysis to the artifacts that package and
+deliver DigiBank. Workshop 2 analyzed the application dependencies, and
+Workshop 3 validated the running HTTP behavior. This section adds the image,
+Dockerfile, Compose configuration and CI controls needed to check what is
+actually built and executed.
+
+The current implementation uses multi-stage Dockerfiles: Maven is used only
+in the build stage and the runtime stage contains the packaged service JAR.
+The Compose file defines the gateway, business services, platform services and
+their PostgreSQL dependencies. Runtime configuration is supplied through
+environment variables rather than embedding workshop credentials in source
+files.
+
+The new `make container-scan` command runs Trivy against every locally built
+application image with vulnerability and secret scanners enabled. It also
+checks the Compose configuration. JSON and SARIF reports are written under
+`dast/reports/container-scan/`. High and Critical unfixed findings fail the
+command; reports are still preserved by CI through an `always()` artifact
+upload step.
+
+The first completed image scan identified five High Alpine package findings in
+the account-service image: OpenSSL/libcrypto, OpenSSL/libssl and libexpat. The
+application JAR contained zero findings. These are container-layer findings,
+not Java dependency findings, so they require a base-image package update
+rather than a Maven change. The Alpine runtime Dockerfiles now run
+`apk upgrade --no-cache` after selecting the Java 21 runtime image. The scan is
+then rerun across every application image; any remaining High or Critical
+finding continues to fail the command.
+
+The API Gateway image was then reviewed separately. Its Java application layer
+was clean, but the Ubuntu runtime image included the `pebble` Go utility with
+eight High findings in the bundled Go standard library and networking packages.
+The gateway runtime now uses the Alpine Java 21 image with package updates,
+removing that unrelated utility from the final image. The gateway image is
+rebuilt and scanned again to verify this focused remediation before reviewing
+the remaining images.
+
+The same runtime-layer finding was reproduced in the discovery-server and
+config-server images: each had eight High findings in the Ubuntu image's
+`pebble` utility, while the service JAR and Ubuntu package inventory were
+clean. Both platform-service Dockerfiles now use the Alpine Java 21 runtime
+with package updates, removing the unrelated utility from their final images.
+
+The complete post-remediation scan was then run against all eight application
+images: API Gateway, customer-service, account-service, transaction-service,
+compliance-service, discovery-server and config-server. Each image reported
+zero High and Critical vulnerabilities, zero Java archive vulnerabilities and
+no detected secrets. The notification-service image is also part of the
+Compose topology and is scanned by the same command; it has no persistence or
+Java test sources, but remains included in the artifact inventory.
+
+The generated evidence consists of one JSON and one SARIF report per image,
+plus JSON and SARIF reports for the Docker Compose configuration. The final
+report set therefore covers all eight application images and the deployment
+configuration, rather than relying only on a terminal summary.
+
+The scan also checks the repository filesystem for vulnerable components,
+misconfiguration and secrets while excluding generated build directories and
+previous scan output. Its JSON and SARIF results are written as
+`filesystem.json` and `filesystem.sarif`. High and Critical findings remain
+blocking; a clean result means no such finding was detected by the configured
+Trivy rules, not that the repository has an absolute security guarantee.
+
+The filesystem scan reported eight Low `DS-0026` observations because the
+individual Dockerfiles do not declare a Docker `HEALTHCHECK`. This is an
+accepted low-risk observation for the workshop: Compose health checks are
+defined for the databases and platform services, while business-service
+readiness is verified by the existing smoke and stack-validation commands.
+The observation remains visible in `filesystem.json` and is not suppressed.
+
+The `multi-stage-build.png` asset shows the packaging decision behind this
+result. Maven and the JDK are used only in the build stage; the final image
+contains the packaged service JAR and a Java 21 runtime. This reduces the
+runtime contents compared with shipping the complete build environment and
+keeps build tooling out of the deployed service image.
+
+The CI container-security job rebuilds the images, installs Trivy, runs the
+same scan and uploads the generated reports. This keeps the container check
+separate from Maven SAST and runtime DAST while preserving the same build
+artifact and failure evidence.
+
+The local Compose deployment intentionally publishes several ports for
+workshop inspection. In a production deployment, only the gateway would be
+public, database ports would remain internal, credentials would come from a
+secret-management system, and images would run with a dedicated non-root
+runtime user. These are deployment decisions to document and harden further;
+they are not silently presented as production security guarantees.
+
 == Workshop Objective Mapping
 
   [cols="1,4", options="header"]
@@ -464,4 +554,12 @@ and assigned an explicit remediation decision.
 | A3.6 | Gateway security configuration, headers, cache and error hardening.
 | A3.7 | Post-remediation Newman and ZAP replay.
 | A3.8 | This report, versioned reports, CI artifacts and reproducible commands.
+| A4.1 | This section explains dependency, image-layer and container-configuration risks in DigiBank.
+| A4.2 | The artifact inventory identifies Dockerfiles, Compose configuration, Maven POMs, images and CI workflow files.
+| A4.3 | OWASP Dependency-Check and Trivy scan Maven, transitive and image-embedded dependencies.
+| A4.4 | Multi-stage Dockerfiles, runtime bases, image contents, ports and Compose parameters are reviewed.
+| A4.5 | Dependency upgrades, Alpine package updates and removal of the Ubuntu `pebble` utility are documented remediations.
+| A4.6 | Each remediation is linked to its risk reduction and verified through a post-remediation scan.
+| A4.7 | GitHub Actions rebuilds images, runs `make container-scan` and uploads JSON/SARIF reports.
+| A4.8 | This report, scan screenshots, generated reports and reproducible Make commands provide the final deliverable.
 |===

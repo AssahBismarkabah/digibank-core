@@ -12,6 +12,10 @@ COPY notification-service/pom.xml notification-service/pom.xml
 COPY api-gateway/src api-gateway/src
 RUN mvn -B -pl api-gateway -am package -DskipTests
 
-FROM eclipse-temurin:21-jre
-COPY --from=build /workspace/api-gateway/target/api-gateway-*.jar /app/app.jar
+FROM eclipse-temurin:21-jre-alpine
+RUN apk upgrade --no-cache
+WORKDIR /app
+RUN addgroup -S digibank && adduser -S -G digibank digibank
+COPY --from=build --chown=digibank:digibank /workspace/api-gateway/target/api-gateway-*.jar /app/app.jar
+USER digibank
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
