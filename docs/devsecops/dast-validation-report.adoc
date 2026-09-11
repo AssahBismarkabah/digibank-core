@@ -168,6 +168,61 @@ The following controls are configured and reproducible:
 Dependency-Check still needs its actual baseline findings to be recorded. No
 finding is described as remediated until its output has been reviewed.
 
+The initial NVD database update completed successfully. The first analysis was
+then stopped by repeated `401 Unauthorized` responses from the optional
+Sonatype OSS Index analyzer. The Dependency-Check command now disables that
+optional analyzer and produces both HTML and JSON reports from the NVD data.
+This is a scanner-integration limitation, not evidence of a dependency CVE.
+
+The completed NVD-based report was generated for the reactor and service
+modules. The initial API Gateway report contained 43 unique CVE identifiers:
+
+* 15 Critical;
+* 13 High;
+* 14 Medium; and
+* 1 Low.
+
+Most findings are repeated transitively across the services and relate to the
+shared Spring Framework, Spring Security, Log4j, PostgreSQL, Hibernate and
+embedded Tomcat dependencies. The
+report is therefore a dependency-risk baseline, not a conclusion that every
+listed CVE is exploitable in DigiBank. Each item must be checked against the
+affected feature and the dependency's fixed version before remediation or
+suppression. The generated HTML and JSON reports are stored under each
+service's `target/` directory and are uploaded by CI.
+
+The first remediation decision is to upgrade the shared Spring Boot parent and
+dependency-management import from `4.1.0` to the available patch release
+`4.1.1`. This keeps the same Spring Boot major/minor line while allowing the
+maintained dependency set to move forward. The build and Dependency-Check scan
+must be rerun before any remaining finding is suppressed. Findings tied to
+unused features, such as WebFlux, RSocket, WebAuthn, LDAP or Tomcat example
+applications, will be documented as not applicable only after the dependency
+tree and application configuration confirm that those features are absent.
+
+After upgrading to Spring Boot `4.1.1` and rerunning the complete reactor scan,
+the API Gateway report contains 11 unique CVE identifiers: 4 Critical, 5 High
+and 2 Medium. The previous Spring Framework, Spring Security, Log4j, PostgreSQL
+and Hibernate findings no longer appear. All remaining findings are associated
+with embedded Tomcat `11.0.24`. They remain open rather than being suppressed
+because the current Spring Boot patch line does not yet manage the required
+fixed Tomcat version. The next dependency-maintenance action is to adopt the
+first compatible Spring Boot patch release that manages a fixed Tomcat version,
+then repeat build, smoke, Newman, ZAP and Dependency-Check validation.
+
+=== Workshop 2 completion status
+
+The static-analysis setup is operational and reproducible. SonarCloud with
+JaCoCo, PITest, Dependency-Check, Maven verification and CI report-upload
+controls have all been executed. The justified code remediation identified by
+SonarCloud was applied, and the shared Spring Boot patch upgrade reduced the
+dependency baseline from 43 to 11 API Gateway CVEs.
+
+Workshop 2 is complete as a documented analysis and remediation exercise, with
+one explicit residual dependency risk: the 11 open findings on embedded Tomcat
+`11.0.24`. They are recorded for the next compatible framework upgrade and are
+not hidden by suppression or by the scan threshold.
+
 The PITest baseline has now been executed successfully after adding the PITest
 JUnit 5 adapter required by the current test stack. All eligible Maven modules
 completed mutation analysis and the reactor ended with `BUILD SUCCESS`.

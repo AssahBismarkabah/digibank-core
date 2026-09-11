@@ -27,7 +27,7 @@ package: ## Package all microservices without rerunning tests
 
 sast-dependency-check: ## Generate OWASP Dependency-Check reports
 	@test -n "$$NVD_API_KEY" || (echo "NVD_API_KEY is required; set it in the ignored root .env or the shell" >&2; exit 1)
-	$(MVN) org.owasp:dependency-check-maven:12.1.0:check -DnvdApiKey=$$NVD_API_KEY -Ddata.directory=$(DEPENDENCY_CHECK_DATA_DIR) -DnvdValidForHours=168 -DfailBuildOnCVSS=11
+	$(MVN) org.owasp:dependency-check-maven:12.1.0:check -DnvdApiKey=$$NVD_API_KEY -Ddata.directory=$(DEPENDENCY_CHECK_DATA_DIR) -DnvdValidForHours=168 -Danalyzer.ossindex.enabled=false -Dformats=HTML,JSON -DfailBuildOnCVSS=11
 
 sast-pitest: ## Generate PITest mutation-testing reports
 	$(MVN) org.pitest:pitest-maven:1.17.4:mutationCoverage
