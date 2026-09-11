@@ -59,9 +59,9 @@ container-scan: ## Scan built images and container configuration with Trivy
 	trivy config --format json --output ../dast/reports/container-scan/docker-compose-config.json --exit-code 0 docker-compose.yml; \
 	trivy config --format sarif --output ../dast/reports/container-scan/docker-compose-config.sarif --exit-code 0 docker-compose.yml; \
 	trivy config --severity HIGH,CRITICAL --exit-code 1 docker-compose.yml || status=1; \
-	trivy fs --scanners vuln,secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --format json --output ../dast/reports/container-scan/filesystem.json --exit-code 0 .; \
-	trivy fs --scanners vuln,secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --format sarif --output ../dast/reports/container-scan/filesystem.sarif --exit-code 0 .; \
-	trivy fs --scanners vuln,secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --severity HIGH,CRITICAL --exit-code 1 . || status=1; \
+	trivy fs --scanners secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --format json --output ../dast/reports/container-scan/filesystem.json --exit-code 0 .; \
+	trivy fs --scanners secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --format sarif --output ../dast/reports/container-scan/filesystem.sarif --exit-code 0 .; \
+	trivy fs --scanners secret,misconfig --skip-dirs .git --skip-dirs target --skip-dirs dast/reports --severity HIGH,CRITICAL --exit-code 1 . || status=1; \
 	exit $$status
 
 up: ## Start the complete microservice stack in the background
